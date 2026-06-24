@@ -1,7 +1,7 @@
 # Desktop Window Aquarium — Design
 
 **Date:** 2026-06-24
-**Status:** Approved (pending spec review)
+**Status:** Approved (spec review passed)
 
 ## Summary
 
