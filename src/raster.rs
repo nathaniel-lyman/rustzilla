@@ -145,6 +145,39 @@ mod tests {
     }
 
     #[test]
+    fn every_entity_glyph_renders_non_blank() {
+        // Regression guard: every glyph any entity actually draws must render
+        // as something visible in the window. If a future sprite introduces a
+        // new non-ASCII glyph, it would silently become a blank hole on screen
+        // (the terminal would still show it) — this fails loudly instead,
+        // pointing at the missing `ascii_fallback` entry.
+        use crate::entity::{Entity, Food, Shark};
+        use crate::fish::{Cool, Ducky, Googly, Upsidedown};
+        use crate::geom::Vec2;
+        let p = Vec2 { x: 0.0, y: 0.0 };
+        let cast: Vec<Box<dyn Entity>> = vec![
+            Box::new(Googly::new(p, 1.0)),
+            Box::new(Cool::new(p, 1.0)),
+            Box::new(Upsidedown::new(p, 1.0)),
+            Box::new(Ducky::new(p, 1.0)),
+            Box::new(Food::new(p)),
+            Box::new(Shark::new(p, 1.0)),
+        ];
+        for e in &cast {
+            for row in e.sprite().rendered_rows() {
+                for c in row.chars().filter(|&c| c != ' ') {
+                    assert!(
+                        glyph(c).iter().any(|&r| r != 0),
+                        "glyph for {c:?} (U+{:04X}) renders blank in the window; \
+                         add an ascii_fallback entry for it",
+                        c as u32
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
     fn grid_dims_floors_and_clamps() {
         assert_eq!(grid_dims(240, 120, 24, 24), (10, 5)); // exact fit
         assert_eq!(grid_dims(250, 130, 24, 24), (10, 5)); // remainder floored

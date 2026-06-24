@@ -1,11 +1,12 @@
-//! Public-domain 8×8 bitmap font (the classic `font8x8_basic` set: printable
-//! ASCII 0x00..0x80). Public domain / CC0 — derived from an IBM-PC ROM font,
-//! via https://github.com/dhepper/font8x8. Each glyph is 8 rows top→bottom;
-//! within a row, bit `n` (1 << n) is column `n`, column 0 leftmost.
-//! Non-printable rows (control codes < 0x20) are all-zero, like a space.
+//! Public-domain 8×8 bitmap font (the classic `font8x8_basic` set: ASCII
+//! 0x00..0x80, of which 0x20..0x7E are the printable glyphs). Public domain /
+//! CC0 — derived from an IBM-PC ROM font, via https://github.com/dhepper/font8x8.
+//! Each glyph is 8 rows top→bottom; within a row, bit `n` (1 << n) is column
+//! `n`, column 0 leftmost. Non-printable rows (control codes < 0x20, and 0x7F)
+//! are all-zero, like a space.
 
-// Consumed by the `raster` module (the window blitter) as well as the terminal
-// render path.
+// Consumed only by the `raster` module (the window blitter). The terminal
+// render path draws chars via crossterm and never touches this bitmap.
 pub const FONT8X8_BASIC: [[u8; 8]; 128] = [
     [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], // 0x00  U+0000 (nul)
     [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], // 0x01  U+0001
