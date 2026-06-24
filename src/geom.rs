@@ -32,6 +32,31 @@ impl Vec2 {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Rect {
+    pub x: f32,
+    pub y: f32,
+    pub w: f32,
+    pub h: f32,
+}
+
+impl Rect {
+    /// Half-open AABB overlap test.
+    pub fn overlaps(self, other: Rect) -> bool {
+        self.x < other.x + other.w
+            && self.x + self.w > other.x
+            && self.y < other.y + other.h
+            && self.y + self.h > other.y
+    }
+
+    pub fn contains(self, p: Vec2) -> bool {
+        p.x >= self.x
+            && p.x < self.x + self.w
+            && p.y >= self.y
+            && p.y < self.y + self.h
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -62,5 +87,26 @@ mod tests {
     fn normalize_zero_is_zero() {
         let z = Vec2 { x: 0.0, y: 0.0 };
         assert_eq!(z.normalized(), z);
+    }
+
+    #[test]
+    fn rect_overlap_detects_intersection() {
+        let a = Rect { x: 0.0, y: 0.0, w: 4.0, h: 2.0 };
+        let b = Rect { x: 3.0, y: 1.0, w: 2.0, h: 2.0 };
+        assert!(a.overlaps(b));
+    }
+
+    #[test]
+    fn rect_overlap_rejects_disjoint() {
+        let a = Rect { x: 0.0, y: 0.0, w: 2.0, h: 2.0 };
+        let b = Rect { x: 5.0, y: 5.0, w: 1.0, h: 1.0 };
+        assert!(!a.overlaps(b));
+    }
+
+    #[test]
+    fn rect_contains_point() {
+        let a = Rect { x: 1.0, y: 1.0, w: 3.0, h: 3.0 };
+        assert!(a.contains(Vec2 { x: 2.0, y: 2.0 }));
+        assert!(!a.contains(Vec2 { x: 10.0, y: 2.0 }));
     }
 }
