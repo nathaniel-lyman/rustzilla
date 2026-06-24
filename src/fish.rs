@@ -1,4 +1,93 @@
+use crate::entity::{Entity, Kind, TankCtx};
 use crate::geom::{Rect, Vec2};
+use crate::sprite::Sprite;
+
+const SENSE_RADIUS: f32 = 12.0;   // how far a fish notices food
+const FEAR_RADIUS: f32 = 10.0;    // how close a shark must be to scare
+const FLEE_SPEED: f32 = 8.0;
+const SEEK_SPEED: f32 = 4.0;
+
+pub struct Googly {
+    pos: Vec2,
+    vx: f32, // horizontal drift, units/sec (sign = facing)
+}
+
+impl Googly {
+    pub fn new(pos: Vec2, vx: f32) -> Googly {
+        Googly { pos, vx }
+    }
+
+    fn sprite_w(&self) -> f32 {
+        self.sprite().width() as f32
+    }
+}
+
+/// Nearest position in `food` within `SENSE_RADIUS`, if any.
+fn nearest_food(p: Vec2, food: &[Vec2]) -> Option<Vec2> {
+    food.iter()
+        .copied()
+        .filter(|f| p.distance(*f) <= SENSE_RADIUS)
+        .min_by(|a, b| {
+            p.distance(*a)
+                .partial_cmp(&p.distance(*b))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
+}
+
+impl Entity for Googly {
+    fn update(&mut self, ctx: &TankCtx) {
+        let w = self.sprite_w();
+        // 1. Flee a close shark (highest priority).
+        if let Some(s) = ctx.shark {
+            if self.pos.distance(s) <= FEAR_RADIUS {
+                self.pos = step_away(self.pos, s, FLEE_SPEED * ctx.dt);
+                self.pos = clamp_y(self.pos, self.sprite().height() as f32, ctx.bounds);
+                self.pos = wrap_x(self.pos, w, ctx.bounds);
+                return;
+            }
+        }
+        // 2. Otherwise seek nearby food.
+        if let Some(target) = nearest_food(self.pos, &ctx.food) {
+            self.pos = step_toward(self.pos, target, SEEK_SPEED * ctx.dt);
+        } else {
+            // 3. Otherwise drift.
+            self.pos = self.pos.add(Vec2 { x: self.vx * ctx.dt, y: 0.0 });
+        }
+        self.pos = clamp_y(self.pos, self.sprite().height() as f32, ctx.bounds);
+        self.pos = wrap_x(self.pos, w, ctx.bounds);
+    }
+
+    fn sprite(&self) -> Sprite {
+        let mut s = Sprite::new(vec!["<°)))><".into()]);
+        s.facing = if self.vx < 0.0 {
+            crate::sprite::Facing::Left
+        } else {
+            crate::sprite::Facing::Right
+        };
+        s
+    }
+
+    fn pos(&self) -> Vec2 {
+        self.pos
+    }
+
+    fn bounds(&self) -> Rect {
+        Rect {
+            x: self.pos.x,
+            y: self.pos.y,
+            w: self.sprite().width() as f32,
+            h: self.sprite().height() as f32,
+        }
+    }
+
+    fn kind(&self) -> Kind {
+        Kind::Fish
+    }
+
+    fn dead(&self) -> bool {
+        false
+    }
+}
 
 /// Wrap an entity of pixel-width `w` around the horizontal edges: once it
 /// fully leaves one side it re-enters on the other.
@@ -35,9 +124,46 @@ pub fn step_away(p: Vec2, threat: Vec2, speed: f32) -> Vec2 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::entity::{Entity, Kind, TankCtx};
 
     fn approx(a: f32, b: f32) -> bool {
         (a - b).abs() < 1e-4
+    }
+
+    fn ctx(food: Vec<Vec2>, shark: Option<Vec2>) -> TankCtx {
+        TankCtx {
+            bounds: Rect { x: 0.0, y: 0.0, w: 40.0, h: 20.0 },
+            dt: 1.0,
+            food,
+            shark,
+        }
+    }
+
+    #[test]
+    fn googly_drifts_horizontally() {
+        let mut f = Googly::new(Vec2 { x: 10.0, y: 5.0 }, 3.0); // +3 units/sec
+        let start = f.pos();
+        f.update(&ctx(vec![], None));
+        assert!((f.pos().x - start.x).abs() > 0.0);
+        assert_eq!(f.kind(), Kind::Fish);
+    }
+
+    #[test]
+    fn googly_seeks_nearby_food() {
+        let mut f = Googly::new(Vec2 { x: 10.0, y: 5.0 }, 3.0);
+        let pellet = Vec2 { x: 10.0, y: 12.0 }; // directly below, in range
+        let before = f.pos().distance(pellet);
+        f.update(&ctx(vec![pellet], None));
+        assert!(f.pos().distance(pellet) < before);
+    }
+
+    #[test]
+    fn googly_flees_nearby_shark() {
+        let mut f = Googly::new(Vec2 { x: 20.0, y: 5.0 }, 3.0);
+        let shark = Vec2 { x: 18.0, y: 5.0 }; // close on the left
+        f.update(&ctx(vec![], Some(shark)));
+        // Fled to the right, away from the shark.
+        assert!(f.pos().x > 20.0);
     }
 
     #[test]
