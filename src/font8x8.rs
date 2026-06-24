@@ -4,9 +4,8 @@
 //! within a row, bit `n` (1 << n) is column `n`, column 0 leftmost.
 //! Non-printable rows (control codes < 0x20) are all-zero, like a space.
 
-// Consumed by the forthcoming `raster` module (the window blitter); until then
-// it has no non-test reader, so silence the dead-code lint on the data itself.
-#[allow(dead_code)]
+// Consumed by the `raster` module (the window blitter) as well as the terminal
+// render path.
 pub const FONT8X8_BASIC: [[u8; 8]; 128] = [
     [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], // 0x00  U+0000 (nul)
     [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], // 0x01  U+0001
