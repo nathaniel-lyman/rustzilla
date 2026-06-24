@@ -398,8 +398,18 @@ mod tests {
     fn hunt_radius_is_at_least_fear_radius() {
         // The shark must still target a fish that has just started fleeing,
         // so its hunt reach is never shorter than the fish's fear reach.
-        let big = Rect { x: 0.0, y: 0.0, w: 150.0, h: 30.0 };
-        let small = Rect { x: 0.0, y: 0.0, w: 10.0, h: 8.0 };
+        let big = Rect {
+            x: 0.0,
+            y: 0.0,
+            w: 150.0,
+            h: 30.0,
+        };
+        let small = Rect {
+            x: 0.0,
+            y: 0.0,
+            w: 10.0,
+            h: 8.0,
+        };
         assert!(hunt_radius(big) >= fear_radius(big));
         assert!(hunt_radius(small) >= fear_radius(small));
     }

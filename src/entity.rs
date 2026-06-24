@@ -268,7 +268,10 @@ mod tests {
         let mut s = Shark::new(Vec2 { x: 5.0, y: 5.0 }, 6.0);
         let before = s.pos().distance(fish);
         s.update(&c);
-        assert!(s.pos().distance(fish) < before, "shark should close on prey");
+        assert!(
+            s.pos().distance(fish) < before,
+            "shark should close on prey"
+        );
         assert!(
             s.pos().y > 5.0,
             "a pure cruise would keep y fixed; hunting moves it"

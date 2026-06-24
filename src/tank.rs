@@ -308,7 +308,11 @@ mod tests {
         t.add_entity(Box::new(Shark::new(Vec2 { x: 4.0, y: 5.0 }, 0.0)));
         assert_eq!(t.count_kind(Kind::Fish), 1);
         t.update(0.016); // one frame: the wide shark overlaps the fish
-        assert_eq!(t.count_kind(Kind::Fish), 0, "overlapping fish should be eaten");
+        assert_eq!(
+            t.count_kind(Kind::Fish),
+            0,
+            "overlapping fish should be eaten"
+        );
     }
 
     #[test]
