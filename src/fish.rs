@@ -16,6 +16,14 @@ fn fear_radius(bounds: Rect) -> f32 {
     (bounds.w.max(bounds.h) * 0.35).max(14.0)
 }
 
+/// How close a fish must be for the shark to commit to hunting it, scaled to
+/// the tank like the other radii. `pub` (unlike its siblings) because the
+/// shark in `entity.rs` reads it. Kept >= `fear_radius` so a fish that has
+/// just begun to flee is, briefly, still a target.
+pub fn hunt_radius(bounds: Rect) -> f32 {
+    (bounds.w.max(bounds.h) * 0.40).max(16.0)
+}
+
 pub struct Googly {
     pos: Vec2,
     vx: f32, // horizontal drift, units/sec
@@ -34,9 +42,11 @@ impl Googly {
     }
 }
 
-/// Nearest position in `food` within `radius`, if any.
-fn nearest_food(p: Vec2, food: &[Vec2], radius: f32) -> Option<Vec2> {
-    food.iter()
+/// Nearest position in `points` within `radius`, if any. Shared by the fish
+/// food-seek path and the shark's prey hunt.
+pub fn nearest(p: Vec2, points: &[Vec2], radius: f32) -> Option<Vec2> {
+    points
+        .iter()
         .copied()
         .filter(|f| p.distance(*f) <= radius)
         .min_by(|a, b| {
@@ -65,7 +75,7 @@ pub fn swim_step(
     {
         // Flee directly away from the shark.
         step_away(pos, ctx.shark.unwrap(), FLEE_SPEED * ctx.dt)
-    } else if let Some(target) = nearest_food(pos, &ctx.food, sense_radius(ctx.bounds)) {
+    } else if let Some(target) = nearest(pos, &ctx.food, sense_radius(ctx.bounds)) {
         step_toward(pos, target, SEEK_SPEED * ctx.dt)
     } else {
         pos.add(Vec2 {
@@ -374,6 +384,24 @@ mod tests {
             fish: vec![],
             shark,
         }
+    }
+
+    #[test]
+    fn nearest_picks_closest_in_radius() {
+        let p = Vec2 { x: 0.0, y: 0.0 };
+        let pts = vec![Vec2 { x: 10.0, y: 0.0 }, Vec2 { x: 3.0, y: 0.0 }];
+        assert_eq!(nearest(p, &pts, 20.0), Some(Vec2 { x: 3.0, y: 0.0 }));
+        assert_eq!(nearest(p, &pts, 1.0), None); // nothing within a tiny radius
+    }
+
+    #[test]
+    fn hunt_radius_is_at_least_fear_radius() {
+        // The shark must still target a fish that has just started fleeing,
+        // so its hunt reach is never shorter than the fish's fear reach.
+        let big = Rect { x: 0.0, y: 0.0, w: 150.0, h: 30.0 };
+        let small = Rect { x: 0.0, y: 0.0, w: 10.0, h: 8.0 };
+        assert!(hunt_radius(big) >= fear_radius(big));
+        assert!(hunt_radius(small) >= fear_radius(small));
     }
 
     #[test]
