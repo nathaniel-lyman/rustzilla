@@ -1,10 +1,11 @@
 use crate::entity::{Entity, Food, Kind, Shark, TankCtx};
-use crate::fish::Googly;
+use crate::fish::{Googly, Tophat, Upsidedown, Ducky};
 use crate::geom::{Rect, Vec2};
 
 pub struct Tank {
     pub bounds: Rect,
     entities: Vec<Box<dyn Entity>>,
+    spawn_counter: usize,
 }
 
 impl Tank {
@@ -14,6 +15,7 @@ impl Tank {
         Tank {
             bounds: Rect { x: 0.0, y: 0.0, w: width as f32, h: height as f32 },
             entities: Vec::new(),
+            spawn_counter: 0,
         }
     }
 
@@ -38,8 +40,15 @@ impl Tank {
         if self.fish_count() >= Self::MAX_FISH {
             return;
         }
-        // Task 12 upgrades this to a random pick from the full cast.
-        self.entities.push(Box::new(Googly::new(pos, 3.0)));
+        let pos = pos; // top-left anchor
+        let fish: Box<dyn Entity> = match self.spawn_counter % 4 {
+            0 => Box::new(Googly::new(pos, 3.0)),
+            1 => Box::new(Tophat::new(pos, 2.0)),
+            2 => Box::new(Upsidedown::new(pos, 3.0)),
+            _ => Box::new(Ducky::new(pos, 2.0)),
+        };
+        self.spawn_counter += 1;
+        self.entities.push(fish);
     }
 
     pub fn update(&mut self, dt: f32) {
