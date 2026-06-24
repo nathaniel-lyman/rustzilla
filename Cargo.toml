@@ -3,5 +3,14 @@ name = "rustzilla"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+gui = ["dep:minifb"]
+
 [dependencies]
 crossterm = "0.27"
+minifb = { version = "0.27", optional = true }
+
+[[bin]]
+name = "aquarium"
+path = "src/bin/aquarium.rs"
+required-features = ["gui"]

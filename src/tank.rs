@@ -1,6 +1,7 @@
 use crate::entity::{Entity, Food, Kind, Shark, TankCtx};
 use crate::fish::{Cool, Ducky, Googly, Upsidedown};
 use crate::geom::{Rect, Vec2};
+use crate::render::Frame;
 
 pub struct Tank {
     pub bounds: Rect,
@@ -37,6 +38,15 @@ impl Tank {
 
     pub fn entities(&self) -> &[Box<dyn Entity>] {
         &self.entities
+    }
+
+    /// Draw every entity into `frame` at its rounded cell position. Shared by
+    /// the terminal and window frontends so both render identically.
+    pub fn draw(&self, frame: &mut Frame) {
+        for e in &self.entities {
+            let p = e.pos();
+            frame.draw_sprite(p.x.round() as i32, p.y.round() as i32, &e.sprite());
+        }
     }
 
     pub fn fish_count(&self) -> usize {
@@ -216,6 +226,17 @@ mod tests {
 
     fn tank() -> Tank {
         Tank::new(40, 20)
+    }
+
+    #[test]
+    fn draw_places_entities_at_rounded_positions() {
+        use crate::render::Frame;
+        let mut t = Tank::new(20, 10);
+        t.drop_food_at(5.0); // a Food pellet '•' starts at the top: (5, 0)
+        let mut frame = Frame::new(20, 10);
+        t.draw(&mut frame);
+        assert_eq!(frame.cell(5, 0), '•'); // pellet drawn at its rounded cell
+        assert_eq!(frame.cell(0, 9), ' '); // elsewhere stays blank
     }
 
     #[test]

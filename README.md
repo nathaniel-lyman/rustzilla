@@ -20,6 +20,21 @@ cargo run
 Best in a terminal at least ~40 columns wide. Press `q` to quit (your terminal
 is always restored cleanly on exit).
 
+### …or on your desktop
+
+The same aquarium runs in a resizable desktop window — a passive, ambient fish
+tank you can park in a corner of your screen:
+
+```bash
+cargo run --features gui --bin aquarium
+```
+
+It keeps the ASCII look (the glyphs are blitted from an embedded 8×8 bitmap font
+into a pixel buffer — no GPU, one small windowing crate) and the same controls
+(`f`/`a`/`s`/`q`) when the window is focused. Resize the window and the tank
+reflows to fill it. The window frontend is gated behind the optional `gui`
+feature, so the default build stays dependency-light.
+
 ## Controls
 
 | Key | Action            |
@@ -52,8 +67,14 @@ carry subtle tints. The ASCII stays simple; the terminal supplies the heft.
   fish-vs-food collisions, and enforces the population cap.
 - `src/render.rs` — the in-memory `Frame` buffer + diffing, and the
   `TerminalGuard` that owns raw-mode/alt-screen setup and teardown.
-- `src/input.rs` — non-blocking key polling mapped to `Action`s.
-- `src/main.rs` — the ~16 FPS game loop tying it together.
+- `src/raster.rs` + `src/font8x8.rs` — the window render path: an embedded
+  public-domain 8×8 bitmap font and a hand-rolled `blit` that turns a `Frame`
+  into a `Vec<u32>` pixel buffer (pure and unit-tested; no windowing crate).
+- `src/input.rs` — non-blocking key polling mapped to `Action`s; the pure
+  `action_for_key` mapping is shared by both frontends.
+- `src/main.rs` — the ~16 FPS terminal game loop tying it together.
+- `src/bin/aquarium.rs` — the desktop-window frontend (`--features gui`): the
+  same `Tank`, rendered via `raster::blit` into a `minifb` window.
 
 Each tick the tank builds an owned `TankCtx` (food and shark positions), then
 lets every entity `update()` itself against that read-only snapshot — which is
