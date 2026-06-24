@@ -1,11 +1,12 @@
-use rustzilla::input::{poll_action, Action};
+use rustzilla::input::{poll_input, Action, Input};
 use rustzilla::render::{flush_diff, Frame, TerminalGuard};
+use crossterm::execute;
 use rustzilla::tank::Tank;
 use std::time::{Duration, Instant};
 
 fn main() -> std::io::Result<()> {
     let mut guard = TerminalGuard::enter()?;
-    let (cols, rows) = crossterm::terminal::size()?;
+    let (mut cols, mut rows) = crossterm::terminal::size()?;
 
     let mut tank = Tank::new(cols, rows);
     // Seed a few fish so the tank isn't empty on launch.
@@ -19,12 +20,22 @@ fn main() -> std::io::Result<()> {
         let tick_start = Instant::now();
 
         // --- input ---
-        if let Some(action) = poll_action(Duration::from_millis(1))? {
-            match action {
-                Action::Quit => break,
-                Action::Feed => tank.drop_food_at((cols / 2) as f32),
-                Action::AddFish => tank.add_fish_at(top_left_spawn(rows)),
-                Action::Shark => tank.summon_shark(),
+        if let Some(input) = poll_input(Duration::from_millis(1))? {
+            match input {
+                Input::Action(Action::Quit) => break,
+                Input::Action(Action::Feed) => tank.drop_food_at((cols / 2) as f32),
+                Input::Action(Action::AddFish) => tank.add_fish_at(top_left_spawn(rows)),
+                Input::Action(Action::Shark) => tank.summon_shark(),
+                Input::Resize(w, h) => {
+                    cols = w;
+                    rows = h;
+                    tank.resize(w, h);
+                    prev = Frame::new(w, h);
+                    execute!(
+                        guard.stdout(),
+                        crossterm::terminal::Clear(crossterm::terminal::ClearType::All)
+                    )?;
+                }
             }
         }
 

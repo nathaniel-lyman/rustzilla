@@ -110,6 +110,12 @@ impl Tank {
         )));
     }
 
+    pub fn resize(&mut self, width: u16, height: u16) {
+        self.bounds.w = width as f32;
+        self.bounds.h = height as f32;
+        self.update(0.0); // entities clamp themselves into the new bounds
+    }
+
     // ---- test-only helpers (kept tiny, behind cfg(test)) ----
     #[cfg(test)]
     pub fn entity_positions(&self) -> Vec<Vec2> {
@@ -181,5 +187,16 @@ mod tests {
             t.update(1.0);
         }
         assert_eq!(t.count_kind(Kind::Food), 0);
+    }
+
+    #[test]
+    fn resize_clamps_entities_into_new_bounds() {
+        let mut t = Tank::new(40, 20);
+        t.add_entity(Box::new(Googly::new(Vec2 { x: 38.0, y: 18.0 }, 0.0)));
+        t.resize(10, 6);
+        let p = t.entity_positions()[0];
+        assert!(p.x <= 10.0 && p.y <= 6.0);
+        assert_eq!(t.bounds.w, 10.0);
+        assert_eq!(t.bounds.h, 6.0);
     }
 }

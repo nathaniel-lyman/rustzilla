@@ -33,6 +33,26 @@ pub fn poll_action(timeout: Duration) -> std::io::Result<Option<Action>> {
     Ok(None)
 }
 
+pub enum Input {
+    Action(Action),
+    Resize(u16, u16),
+}
+
+pub fn poll_input(timeout: Duration) -> std::io::Result<Option<Input>> {
+    if event::poll(timeout)? {
+        match event::read()? {
+            Event::Key(k) => {
+                if let KeyCode::Char(c) = k.code {
+                    return Ok(action_for_key(c).map(Input::Action));
+                }
+            }
+            Event::Resize(w, h) => return Ok(Some(Input::Resize(w, h))),
+            _ => {}
+        }
+    }
+    Ok(None)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
