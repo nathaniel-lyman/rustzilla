@@ -15,8 +15,8 @@ pub enum Kind {
 pub struct TankCtx {
     pub bounds: Rect,
     pub dt: f32,
-    pub food: Vec<Vec2>,        // pellet positions this tick
-    pub shark: Option<Vec2>,    // shark position, if one is present
+    pub food: Vec<Vec2>,     // pellet positions this tick
+    pub shark: Option<Vec2>, // shark position, if one is present
 }
 
 pub trait Entity {
@@ -32,8 +32,8 @@ pub trait Entity {
     fn on_eaten(&mut self) {}
 }
 
-const SINK_SPEED: f32 = 3.0;       // units/sec
-const DISSOLVE_AFTER: f32 = 4.0;   // seconds resting on the bottom
+const SINK_SPEED: f32 = 3.0; // units/sec
+const DISSOLVE_AFTER: f32 = 4.0; // seconds resting on the bottom
 
 pub struct Food {
     pos: Vec2,
@@ -43,7 +43,11 @@ pub struct Food {
 
 impl Food {
     pub fn new(pos: Vec2) -> Food {
-        Food { pos, eaten: false, rest_time: 0.0 }
+        Food {
+            pos,
+            eaten: false,
+            rest_time: 0.0,
+        }
     }
 }
 
@@ -66,7 +70,12 @@ impl Entity for Food {
     }
 
     fn bounds(&self) -> Rect {
-        Rect { x: self.pos.x, y: self.pos.y, w: 1.0, h: 1.0 }
+        Rect {
+            x: self.pos.x,
+            y: self.pos.y,
+            w: 1.0,
+            h: 1.0,
+        }
     }
 
     fn kind(&self) -> Kind {
@@ -90,7 +99,11 @@ pub struct Shark {
 
 impl Shark {
     pub fn new(pos: Vec2, vx: f32) -> Shark {
-        Shark { pos, vx, gone: false }
+        Shark {
+            pos,
+            vx,
+            gone: false,
+        }
     }
 }
 
@@ -99,9 +112,9 @@ impl Entity for Shark {
         self.pos.x += self.vx * ctx.dt;
         let w = self.sprite().width() as f32;
         // Despawn once fully past the far edge (in its travel direction).
-        if self.vx > 0.0 && self.pos.x > ctx.bounds.x + ctx.bounds.w {
-            self.gone = true;
-        } else if self.vx < 0.0 && self.pos.x + w < ctx.bounds.x {
+        let off_right = self.vx > 0.0 && self.pos.x > ctx.bounds.x + ctx.bounds.w;
+        let off_left = self.vx < 0.0 && self.pos.x + w < ctx.bounds.x;
+        if off_right || off_left {
             self.gone = true;
         }
     }
@@ -145,7 +158,12 @@ mod tests {
 
     fn ctx() -> TankCtx {
         TankCtx {
-            bounds: Rect { x: 0.0, y: 0.0, w: 40.0, h: 20.0 },
+            bounds: Rect {
+                x: 0.0,
+                y: 0.0,
+                w: 40.0,
+                h: 20.0,
+            },
             dt: 1.0,
             food: vec![],
             shark: None,

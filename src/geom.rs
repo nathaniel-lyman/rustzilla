@@ -5,12 +5,21 @@ pub struct Vec2 {
 }
 
 impl Vec2 {
+    // A plain inherent `add` reads naturally at the call sites here
+    // (`p.add(v)`); we deliberately don't implement `std::ops::Add`.
+    #[allow(clippy::should_implement_trait)]
     pub fn add(self, other: Vec2) -> Vec2 {
-        Vec2 { x: self.x + other.x, y: self.y + other.y }
+        Vec2 {
+            x: self.x + other.x,
+            y: self.y + other.y,
+        }
     }
 
     pub fn scaled(self, k: f32) -> Vec2 {
-        Vec2 { x: self.x * k, y: self.y * k }
+        Vec2 {
+            x: self.x * k,
+            y: self.y * k,
+        }
     }
 
     pub fn length(self) -> f32 {
@@ -18,7 +27,11 @@ impl Vec2 {
     }
 
     pub fn distance(self, other: Vec2) -> f32 {
-        Vec2 { x: self.x - other.x, y: self.y - other.y }.length()
+        Vec2 {
+            x: self.x - other.x,
+            y: self.y - other.y,
+        }
+        .length()
     }
 
     /// Unit vector in the same direction; the zero vector maps to itself.
@@ -50,10 +63,7 @@ impl Rect {
     }
 
     pub fn contains(self, p: Vec2) -> bool {
-        p.x >= self.x
-            && p.x < self.x + self.w
-            && p.y >= self.y
-            && p.y < self.y + self.h
+        p.x >= self.x && p.x < self.x + self.w && p.y >= self.y && p.y < self.y + self.h
     }
 }
 
@@ -91,21 +101,46 @@ mod tests {
 
     #[test]
     fn rect_overlap_detects_intersection() {
-        let a = Rect { x: 0.0, y: 0.0, w: 4.0, h: 2.0 };
-        let b = Rect { x: 3.0, y: 1.0, w: 2.0, h: 2.0 };
+        let a = Rect {
+            x: 0.0,
+            y: 0.0,
+            w: 4.0,
+            h: 2.0,
+        };
+        let b = Rect {
+            x: 3.0,
+            y: 1.0,
+            w: 2.0,
+            h: 2.0,
+        };
         assert!(a.overlaps(b));
     }
 
     #[test]
     fn rect_overlap_rejects_disjoint() {
-        let a = Rect { x: 0.0, y: 0.0, w: 2.0, h: 2.0 };
-        let b = Rect { x: 5.0, y: 5.0, w: 1.0, h: 1.0 };
+        let a = Rect {
+            x: 0.0,
+            y: 0.0,
+            w: 2.0,
+            h: 2.0,
+        };
+        let b = Rect {
+            x: 5.0,
+            y: 5.0,
+            w: 1.0,
+            h: 1.0,
+        };
         assert!(!a.overlaps(b));
     }
 
     #[test]
     fn rect_contains_point() {
-        let a = Rect { x: 1.0, y: 1.0, w: 3.0, h: 3.0 };
+        let a = Rect {
+            x: 1.0,
+            y: 1.0,
+            w: 3.0,
+            h: 3.0,
+        };
         assert!(a.contains(Vec2 { x: 2.0, y: 2.0 }));
         assert!(!a.contains(Vec2 { x: 10.0, y: 2.0 }));
     }

@@ -15,11 +15,19 @@ pub struct Sprite {
 
 impl Sprite {
     pub fn new(rows: Vec<String>) -> Sprite {
-        Sprite { rows, facing: Facing::Right, flip_v: false }
+        Sprite {
+            rows,
+            facing: Facing::Right,
+            flip_v: false,
+        }
     }
 
     pub fn width(&self) -> usize {
-        self.rows.iter().map(|r| r.chars().count()).max().unwrap_or(0)
+        self.rows
+            .iter()
+            .map(|r| r.chars().count())
+            .max()
+            .unwrap_or(0)
     }
 
     pub fn height(&self) -> usize {
@@ -85,6 +93,9 @@ mod tests {
     fn rendered_rows_flip_vertically() {
         let mut s = Sprite::new(vec!["top".into(), "bot".into()]);
         s.flip_v = true;
-        assert_eq!(s.rendered_rows(), vec!["bot".to_string(), "top".to_string()]);
+        assert_eq!(
+            s.rendered_rows(),
+            vec!["bot".to_string(), "top".to_string()]
+        );
     }
 }

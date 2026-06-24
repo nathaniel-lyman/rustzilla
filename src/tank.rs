@@ -1,5 +1,5 @@
 use crate::entity::{Entity, Food, Kind, Shark, TankCtx};
-use crate::fish::{Googly, Tophat, Upsidedown, Ducky};
+use crate::fish::{Ducky, Googly, Tophat, Upsidedown};
 use crate::geom::{Rect, Vec2};
 
 pub struct Tank {
@@ -13,7 +13,12 @@ impl Tank {
 
     pub fn new(width: u16, height: u16) -> Tank {
         Tank {
-            bounds: Rect { x: 0.0, y: 0.0, w: width as f32, h: height as f32 },
+            bounds: Rect {
+                x: 0.0,
+                y: 0.0,
+                w: width as f32,
+                h: height as f32,
+            },
             entities: Vec::new(),
             spawn_counter: 0,
         }
@@ -40,7 +45,7 @@ impl Tank {
         if self.fish_count() >= Self::MAX_FISH {
             return;
         }
-        let pos = pos; // top-left anchor
+        // `pos` is the top-left anchor for the new fish.
         let fish: Box<dyn Entity> = match self.spawn_counter % 4 {
             0 => Box::new(Googly::new(pos, 3.0)),
             1 => Box::new(Tophat::new(pos, 2.0)),
@@ -72,7 +77,12 @@ impl Tank {
             .iter()
             .find(|e| e.kind() == Kind::Shark)
             .map(|e| e.pos());
-        TankCtx { bounds: self.bounds, dt, food, shark }
+        TankCtx {
+            bounds: self.bounds,
+            dt,
+            food,
+            shark,
+        }
     }
 
     /// A pellet whose cell overlaps any fish's bounds is eaten.
@@ -95,7 +105,10 @@ impl Tank {
 
     /// Drop a pellet from the top at horizontal position `x`.
     pub fn drop_food_at(&mut self, x: f32) {
-        self.entities.push(Box::new(Food::new(Vec2 { x, y: self.bounds.y })));
+        self.entities.push(Box::new(Food::new(Vec2 {
+            x,
+            y: self.bounds.y,
+        })));
     }
 
     /// Summon a shark from the left edge, unless one is already cruising.
@@ -105,7 +118,10 @@ impl Tank {
         }
         let y = self.bounds.h * 0.5;
         self.entities.push(Box::new(Shark::new(
-            Vec2 { x: self.bounds.x - 6.0, y },
+            Vec2 {
+                x: self.bounds.x - 6.0,
+                y,
+            },
             10.0,
         )));
     }
