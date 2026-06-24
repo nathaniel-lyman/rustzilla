@@ -120,6 +120,10 @@ impl Shark {
 
 impl Entity for Shark {
     fn update(&mut self, ctx: &TankCtx) {
+        // Dimensions are constant for this tick (facing doesn't change w/h), so
+        // build the sprite once rather than re-allocating it for h and again for w.
+        let sprite = self.sprite();
+
         // Hunting: while not yet full, steer toward the nearest fish in reach.
         let target = if self.eaten < FULL_AFTER {
             crate::fish::nearest(self.pos, &ctx.fish, crate::fish::hunt_radius(ctx.bounds))
@@ -128,7 +132,7 @@ impl Entity for Shark {
         };
 
         let dx = if let Some(t) = target {
-            let h = self.sprite().height() as f32;
+            let h = sprite.height() as f32;
             let stepped = crate::fish::step_toward(self.pos, t, HUNT_SPEED * ctx.dt);
             let next = crate::fish::clamp_y(stepped, h, ctx.bounds);
             let dx = next.x - self.pos.x;
@@ -145,7 +149,7 @@ impl Entity for Shark {
             self.facing_right = dx > 0.0;
         }
 
-        let w = self.sprite().width() as f32;
+        let w = sprite.width() as f32;
         // Despawn once fully past the far edge (in its cruise direction).
         let off_right = self.vx > 0.0 && self.pos.x > ctx.bounds.x + ctx.bounds.w;
         let off_left = self.vx < 0.0 && self.pos.x + w < ctx.bounds.x;

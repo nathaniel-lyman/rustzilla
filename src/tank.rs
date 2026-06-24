@@ -313,6 +313,19 @@ mod tests {
             0,
             "overlapping fish should be eaten"
         );
+        // The kill must also register on the shark itself: its body widens one
+        // segment per kill, so the base-10 sprite is now 11 wide. This pins the
+        // resolve_shark -> on_kill wiring, which the fish-count check alone misses.
+        let shark = t
+            .entities()
+            .iter()
+            .find(|e| e.kind() == Kind::Shark)
+            .expect("shark still present");
+        assert_eq!(
+            shark.sprite().width(),
+            11,
+            "shark should fatten after counting the kill"
+        );
     }
 
     #[test]
@@ -324,6 +337,27 @@ mod tests {
         t.add_entity(Box::new(Shark::new(Vec2 { x: 4.0, y: 0.0 }, 0.0)));
         t.update(0.016);
         assert_eq!(t.count_kind(Kind::Fish), 0);
+    }
+
+    #[test]
+    fn full_shark_eventually_leaves_the_tank() {
+        // End-to-end: a shark that eats its fill through real Tank::update ticks
+        // must then cruise off and despawn — the "never empties / always leaves"
+        // guarantee, exercised through resolve_shark rather than on_kill directly.
+        let mut t = Tank::new(40, 20);
+        for _ in 0..3 {
+            // Three fish sitting on the shark's path, eaten as it passes.
+            t.add_entity(Box::new(Googly::new(Vec2 { x: 4.0, y: 10.0 }, 0.0)));
+        }
+        t.add_entity(Box::new(Shark::new(Vec2 { x: 0.0, y: 10.0 }, 6.0)));
+        for _ in 0..200 {
+            t.update(0.5);
+        }
+        assert_eq!(
+            t.count_kind(Kind::Shark),
+            0,
+            "a full shark should cruise off and despawn"
+        );
     }
 
     #[test]
