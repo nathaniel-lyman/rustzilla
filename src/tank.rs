@@ -6,6 +6,12 @@ pub struct Tank {
     pub bounds: Rect,
     entities: Vec<Box<dyn Entity>>,
     spawn_counter: usize,
+    food_counter: usize,
+}
+
+/// Fractional part of `x` (the `{x}` in low-discrepancy sequences).
+fn frac(x: f32) -> f32 {
+    x - x.floor()
 }
 
 impl Tank {
@@ -21,6 +27,7 @@ impl Tank {
             },
             entities: Vec::new(),
             spawn_counter: 0,
+            food_counter: 0,
         }
     }
 
@@ -40,19 +47,35 @@ impl Tank {
         self.entities.iter().filter(|e| e.kind() == kind).count()
     }
 
-    /// Spawn a fish if under the cap; a gentle no-op otherwise.
-    pub fn add_fish_at(&mut self, pos: Vec2) {
+    /// Spawn a random fish if under the cap; a gentle no-op otherwise.
+    ///
+    /// Each fish gets a spread-out position, depth, speed, and direction
+    /// (derived from a low-discrepancy sequence) so fish never spawn in a
+    /// single column or swim in lockstep — which is what made them overlap.
+    pub fn add_fish_at(&mut self) {
         if self.fish_count() >= Self::MAX_FISH {
             return;
         }
-        // `pos` is the top-left anchor for the new fish.
-        let fish: Box<dyn Entity> = match self.spawn_counter % 4 {
-            0 => Box::new(Googly::new(pos, 3.0)),
-            1 => Box::new(Tophat::new(pos, 2.0)),
-            2 => Box::new(Upsidedown::new(pos, 3.0)),
-            _ => Box::new(Ducky::new(pos, 2.0)),
-        };
+        let n = self.spawn_counter;
         self.spawn_counter += 1;
+
+        let fx = frac(n as f32 * 0.618_034 + 0.123);
+        let fy = frac(n as f32 * 0.381_966 + 0.456);
+        let fs = frac(n as f32 * 0.754_877 + 0.789);
+
+        let x = self.bounds.x + fx * (self.bounds.w - 8.0).max(1.0);
+        let y = self.bounds.y + fy * (self.bounds.h - 2.0).max(1.0);
+        let speed = 1.5 + fs * 2.5; // 1.5..4.0 cells/sec
+        let dir = if n.is_multiple_of(2) { 1.0 } else { -1.0 };
+        let vx = speed * dir;
+        let pos = Vec2 { x, y };
+
+        let fish: Box<dyn Entity> = match n % 4 {
+            0 => Box::new(Googly::new(pos, vx)),
+            1 => Box::new(Tophat::new(pos, vx)),
+            2 => Box::new(Upsidedown::new(pos, vx)),
+            _ => Box::new(Ducky::new(pos, vx)),
+        };
         self.entities.push(fish);
     }
 
@@ -111,6 +134,16 @@ impl Tank {
         })));
     }
 
+    /// Drop a pellet at a varied column so repeated feeds spread out rather
+    /// than stacking in one line.
+    pub fn feed(&mut self) {
+        let n = self.food_counter;
+        self.food_counter += 1;
+        let fx = frac(n as f32 * 0.618_034 + 0.5);
+        let x = self.bounds.x + fx * (self.bounds.w - 1.0).max(1.0);
+        self.drop_food_at(x);
+    }
+
     /// Summon a shark from the left edge, unless one is already cruising.
     pub fn summon_shark(&mut self) {
         if self.count_kind(Kind::Shark) > 0 {
@@ -161,9 +194,24 @@ mod tests {
     fn fish_cap_blocks_extra_spawns() {
         let mut t = tank();
         for _ in 0..Tank::MAX_FISH + 5 {
-            t.add_fish_at(Vec2 { x: 1.0, y: 1.0 });
+            t.add_fish_at();
         }
         assert_eq!(t.fish_count(), Tank::MAX_FISH);
+    }
+
+    #[test]
+    fn spawned_fish_spread_across_the_tank() {
+        let mut t = Tank::new(150, 30);
+        for _ in 0..4 {
+            t.add_fish_at();
+        }
+        let xs: Vec<f32> = t.entity_positions().iter().map(|p| p.x).collect();
+        // Fish must not all land in the same column (the old lockstep bug).
+        let spread = xs.iter().any(|&x| (x - xs[0]).abs() > 1.0);
+        assert!(
+            spread,
+            "fish should spawn at varied x positions, got {xs:?}"
+        );
     }
 
     #[test]

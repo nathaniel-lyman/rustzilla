@@ -120,7 +120,8 @@ impl Entity for Shark {
     }
 
     fn sprite(&self) -> Sprite {
-        let mut s = Sprite::new(vec!["/\\".into(), "<°```>".into()]);
+        // Base art faces right: fin over the body, eye/nose on the right.
+        let mut s = Sprite::new(vec!["  /\\  ".into(), "<```°>".into()]);
         s.facing = if self.vx < 0.0 {
             crate::sprite::Facing::Left
         } else {

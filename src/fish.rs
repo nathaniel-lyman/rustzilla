@@ -2,10 +2,19 @@ use crate::entity::{Entity, Kind, TankCtx};
 use crate::geom::{Rect, Vec2};
 use crate::sprite::Sprite;
 
-const SENSE_RADIUS: f32 = 12.0; // how far a fish notices food
-const FEAR_RADIUS: f32 = 10.0; // how close a shark must be to scare
 const FLEE_SPEED: f32 = 8.0;
 const SEEK_SPEED: f32 = 4.0;
+
+/// How far a fish notices food, scaled to the tank so reactions stay visible
+/// in a large terminal (a fixed radius is invisible in a 150-cell-wide tank).
+fn sense_radius(bounds: Rect) -> f32 {
+    (bounds.w.max(bounds.h) * 0.30).max(12.0)
+}
+
+/// How close the shark must be to scare a fish, scaled to the tank.
+fn fear_radius(bounds: Rect) -> f32 {
+    (bounds.w.max(bounds.h) * 0.35).max(14.0)
+}
 
 pub struct Googly {
     pos: Vec2,
@@ -18,11 +27,11 @@ impl Googly {
     }
 }
 
-/// Nearest position in `food` within `SENSE_RADIUS`, if any.
-fn nearest_food(p: Vec2, food: &[Vec2]) -> Option<Vec2> {
+/// Nearest position in `food` within `radius`, if any.
+fn nearest_food(p: Vec2, food: &[Vec2], radius: f32) -> Option<Vec2> {
     food.iter()
         .copied()
-        .filter(|f| p.distance(*f) <= SENSE_RADIUS)
+        .filter(|f| p.distance(*f) <= radius)
         .min_by(|a, b| {
             p.distance(*a)
                 .partial_cmp(&p.distance(*b))
@@ -42,13 +51,13 @@ pub fn swim_step(
 ) -> Vec2 {
     if fears_shark {
         if let Some(s) = ctx.shark {
-            if pos.distance(s) <= FEAR_RADIUS {
+            if pos.distance(s) <= fear_radius(ctx.bounds) {
                 let p = step_away(pos, s, FLEE_SPEED * ctx.dt);
                 return wrap_x(clamp_y(p, sprite_h, ctx.bounds), sprite_w, ctx.bounds);
             }
         }
     }
-    let p = if let Some(target) = nearest_food(pos, &ctx.food) {
+    let p = if let Some(target) = nearest_food(pos, &ctx.food, sense_radius(ctx.bounds)) {
         step_toward(pos, target, SEEK_SPEED * ctx.dt)
     } else {
         pos.add(Vec2 {
@@ -66,7 +75,8 @@ impl Entity for Googly {
     }
 
     fn sprite(&self) -> Sprite {
-        let mut s = Sprite::new(vec!["<°)))><".into()]);
+        // Base art faces right (per the Sprite contract); mirrored when moving left.
+        let mut s = Sprite::new(vec!["><(((°>".into()]);
         s.facing = if self.vx < 0.0 {
             crate::sprite::Facing::Left
         } else {
@@ -156,7 +166,8 @@ impl Entity for Tophat {
         self.pos = swim_step(self.pos, self.vx * 0.5, w, h, true, ctx);
     }
     fn sprite(&self) -> Sprite {
-        let mut s = Sprite::new(vec![" _o_ ".into(), "<°)))><".into()]);
+        // Hat sits over the head (right side); body faces right.
+        let mut s = Sprite::new(vec!["    _o_".into(), "><(((°>".into()]);
         s.facing = if self.vx < 0.0 {
             crate::sprite::Facing::Left
         } else {
@@ -204,7 +215,7 @@ impl Entity for Upsidedown {
         self.pos = swim_step(self.pos, self.vx, w, h, true, ctx);
     }
     fn sprite(&self) -> Sprite {
-        let mut s = Sprite::new(vec!["<°)))><".into()]);
+        let mut s = Sprite::new(vec!["><(((°>".into()]);
         s.facing = if self.vx < 0.0 {
             crate::sprite::Facing::Left
         } else {
@@ -253,7 +264,7 @@ impl Entity for Ducky {
         self.pos.y = ctx.bounds.y; // pinned to the top row
     }
     fn sprite(&self) -> Sprite {
-        let mut s = Sprite::new(vec!["_(°)<".into()]);
+        let mut s = Sprite::new(vec!["_(°)>".into()]);
         s.facing = if self.vx < 0.0 {
             crate::sprite::Facing::Left
         } else {
@@ -319,6 +330,63 @@ mod tests {
         let before = f.pos().distance(pellet);
         f.update(&ctx(vec![pellet], None));
         assert!(f.pos().distance(pellet) < before);
+    }
+
+    #[test]
+    fn fish_faces_its_travel_direction() {
+        // Moving right → right-facing art as-is.
+        let right = Googly::new(Vec2 { x: 0.0, y: 0.0 }, 3.0);
+        assert_eq!(right.sprite().rendered_rows()[0], "><(((°>");
+        // Moving left → mirrored to the left-facing form.
+        let left = Googly::new(Vec2 { x: 0.0, y: 0.0 }, -3.0);
+        assert_eq!(left.sprite().rendered_rows()[0], "<°)))><");
+    }
+
+    #[test]
+    fn fish_seeks_food_across_a_wide_tank() {
+        // In a 150-wide tank, food 32 cells away must still register
+        // (a fixed radius of 12 would never notice it).
+        let bounds = Rect {
+            x: 0.0,
+            y: 0.0,
+            w: 150.0,
+            h: 30.0,
+        };
+        let pellet = Vec2 { x: 48.0, y: 10.0 };
+        let c = TankCtx {
+            bounds,
+            dt: 1.0,
+            food: vec![pellet],
+            shark: None,
+        };
+        // Fish at x=80 drifting RIGHT (away from the pellet on its left):
+        // only seeking can shrink the distance.
+        let mut f = Googly::new(Vec2 { x: 80.0, y: 10.0 }, 3.0);
+        let before = f.pos().distance(pellet);
+        f.update(&c);
+        assert!(f.pos().distance(pellet) < before);
+    }
+
+    #[test]
+    fn fish_flees_shark_across_a_wide_tank() {
+        let bounds = Rect {
+            x: 0.0,
+            y: 0.0,
+            w: 150.0,
+            h: 30.0,
+        };
+        let shark = Vec2 { x: 40.0, y: 10.0 };
+        let c = TankCtx {
+            bounds,
+            dt: 1.0,
+            food: vec![],
+            shark: Some(shark),
+        };
+        // Fish 20 cells to the shark's right, drifting LEFT (toward it):
+        // only fleeing can push it further right.
+        let mut f = Googly::new(Vec2 { x: 60.0, y: 10.0 }, -3.0);
+        f.update(&c);
+        assert!(f.pos().x > 60.0);
     }
 
     #[test]
