@@ -53,10 +53,7 @@ fn main() -> std::io::Result<()> {
 
         // --- render ---
         let mut frame = Frame::new(cols, rows);
-        for e in tank.entities() {
-            let p = e.pos();
-            frame.draw_sprite(p.x.round() as i32, p.y.round() as i32, &e.sprite());
-        }
+        tank.draw(&mut frame);
         let changes = frame.diff(&prev);
         flush_diff(guard.stdout(), &changes)?;
         prev = frame;
