@@ -20,24 +20,14 @@ pub fn action_for_key(c: char) -> Option<Action> {
 use crossterm::event::{self, Event, KeyCode};
 use std::time::Duration;
 
-/// Poll for a key without blocking. Returns the mapped action, if any.
-/// `Resize` events are surfaced separately by the caller via `poll_event`.
-pub fn poll_action(timeout: Duration) -> std::io::Result<Option<Action>> {
-    if event::poll(timeout)? {
-        if let Event::Key(k) = event::read()? {
-            if let KeyCode::Char(c) = k.code {
-                return Ok(action_for_key(c));
-            }
-        }
-    }
-    Ok(None)
-}
-
+/// A single thing the loop reacts to: a mapped key action or a terminal resize.
 pub enum Input {
     Action(Action),
     Resize(u16, u16),
 }
 
+/// Poll for input without blocking. Returns a mapped key action, a resize, or
+/// `None` if nothing happened within `timeout`.
 pub fn poll_input(timeout: Duration) -> std::io::Result<Option<Input>> {
     if event::poll(timeout)? {
         match event::read()? {

@@ -6,11 +6,14 @@ use std::time::{Duration, Instant};
 
 fn main() -> std::io::Result<()> {
     let mut guard = TerminalGuard::enter()?;
-    let (mut cols, mut rows) = crossterm::terminal::size()?;
+    let (raw_cols, raw_rows) = crossterm::terminal::size()?;
+    // Guard against a degenerate 0-sized terminal (can happen transiently on
+    // some resizes) so we never busy-spin rendering an empty frame.
+    let (mut cols, mut rows) = (raw_cols.max(1), raw_rows.max(1));
 
     let mut tank = Tank::new(cols, rows);
     // Seed a few fish so the tank isn't empty on launch.
-    seed_fish(&mut tank, cols, rows);
+    seed_fish(&mut tank, rows);
 
     let frame_budget = Duration::from_millis(60); // ~16 FPS
     let mut prev = Frame::new(cols, rows);
@@ -27,10 +30,10 @@ fn main() -> std::io::Result<()> {
                 Input::Action(Action::AddFish) => tank.add_fish_at(top_left_spawn(rows)),
                 Input::Action(Action::Shark) => tank.summon_shark(),
                 Input::Resize(w, h) => {
-                    cols = w;
-                    rows = h;
-                    tank.resize(w, h);
-                    prev = Frame::new(w, h);
+                    cols = w.max(1);
+                    rows = h.max(1);
+                    tank.resize(cols, rows);
+                    prev = Frame::new(cols, rows);
                     execute!(
                         guard.stdout(),
                         crossterm::terminal::Clear(crossterm::terminal::ClearType::All)
@@ -72,12 +75,15 @@ fn top_left_spawn(rows: u16) -> rustzilla::geom::Vec2 {
     }
 }
 
-fn seed_fish(tank: &mut Tank, cols: u16, rows: u16) {
-    let _ = cols;
+fn seed_fish(tank: &mut Tank, rows: u16) {
+    // Space the initial fish two rows apart, kept within the tank height.
+    // clamp_y on the first tick corrects anything that lands out of bounds.
+    let spacing = 2;
     for i in 0..6 {
+        let y = (2 + i * spacing).min(rows.saturating_sub(1).max(1));
         tank.add_fish_at(rustzilla::geom::Vec2 {
             x: 2.0,
-            y: (2 + i * 2 % rows.max(4)) as f32,
+            y: y as f32,
         });
     }
 }
