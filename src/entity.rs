@@ -82,6 +82,62 @@ impl Entity for Food {
     }
 }
 
+pub struct Shark {
+    pos: Vec2,
+    vx: f32,
+    gone: bool,
+}
+
+impl Shark {
+    pub fn new(pos: Vec2, vx: f32) -> Shark {
+        Shark { pos, vx, gone: false }
+    }
+}
+
+impl Entity for Shark {
+    fn update(&mut self, ctx: &TankCtx) {
+        self.pos.x += self.vx * ctx.dt;
+        let w = self.sprite().width() as f32;
+        // Despawn once fully past the far edge (in its travel direction).
+        if self.vx > 0.0 && self.pos.x > ctx.bounds.x + ctx.bounds.w {
+            self.gone = true;
+        } else if self.vx < 0.0 && self.pos.x + w < ctx.bounds.x {
+            self.gone = true;
+        }
+    }
+
+    fn sprite(&self) -> Sprite {
+        let mut s = Sprite::new(vec!["/\\".into(), "<°```>".into()]);
+        s.facing = if self.vx < 0.0 {
+            crate::sprite::Facing::Left
+        } else {
+            crate::sprite::Facing::Right
+        };
+        s
+    }
+
+    fn pos(&self) -> Vec2 {
+        self.pos
+    }
+
+    fn bounds(&self) -> Rect {
+        Rect {
+            x: self.pos.x,
+            y: self.pos.y,
+            w: self.sprite().width() as f32,
+            h: self.sprite().height() as f32,
+        }
+    }
+
+    fn kind(&self) -> Kind {
+        Kind::Shark
+    }
+
+    fn dead(&self) -> bool {
+        self.gone
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -120,5 +176,24 @@ mod tests {
             f.update(&ctx());
         }
         assert!(f.dead());
+    }
+
+    #[test]
+    fn shark_cruises_horizontally() {
+        let mut s = Shark::new(Vec2 { x: 0.0, y: 5.0 }, 6.0);
+        let x0 = s.pos().x;
+        s.update(&ctx());
+        assert!(s.pos().x > x0);
+        assert_eq!(s.kind(), Kind::Shark);
+    }
+
+    #[test]
+    fn shark_dies_after_leaving_the_far_side() {
+        let mut s = Shark::new(Vec2 { x: 0.0, y: 5.0 }, 6.0);
+        assert!(!s.dead());
+        for _ in 0..100 {
+            s.update(&ctx()); // ctx bounds width = 40
+        }
+        assert!(s.dead());
     }
 }

@@ -1,4 +1,4 @@
-use crate::entity::{Entity, Food, Kind, TankCtx};
+use crate::entity::{Entity, Food, Kind, Shark, TankCtx};
 use crate::fish::Googly;
 use crate::geom::{Rect, Vec2};
 
@@ -89,6 +89,18 @@ impl Tank {
         self.entities.push(Box::new(Food::new(Vec2 { x, y: self.bounds.y })));
     }
 
+    /// Summon a shark from the left edge, unless one is already cruising.
+    pub fn summon_shark(&mut self) {
+        if self.count_kind(Kind::Shark) > 0 {
+            return;
+        }
+        let y = self.bounds.h * 0.5;
+        self.entities.push(Box::new(Shark::new(
+            Vec2 { x: self.bounds.x - 6.0, y },
+            10.0,
+        )));
+    }
+
     // ---- test-only helpers (kept tiny, behind cfg(test)) ----
     #[cfg(test)]
     pub fn entity_positions(&self) -> Vec<Vec2> {
@@ -139,6 +151,15 @@ mod tests {
             }
         }
         assert!(eaten, "pellet should be eaten as it passes the fish");
+    }
+
+    #[test]
+    fn summon_shark_adds_one_and_only_one() {
+        let mut t = tank();
+        t.summon_shark();
+        assert_eq!(t.count_kind(Kind::Shark), 1);
+        t.summon_shark(); // already present → no-op
+        assert_eq!(t.count_kind(Kind::Shark), 1);
     }
 
     #[test]
