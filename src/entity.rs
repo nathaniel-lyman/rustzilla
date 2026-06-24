@@ -1,5 +1,5 @@
 use crate::geom::{Rect, Vec2};
-use crate::sprite::{Color, Sprite};
+use crate::sprite::{Color, Facing, Sprite};
 
 /// What an entity is, so the tank can build context, enforce the fish cap,
 /// and resolve fish-vs-food collisions without downcasting.
@@ -31,10 +31,16 @@ pub trait Entity {
     /// Called by the tank when a fish overlaps this entity (only Food acts
     /// on it; default is a no-op).
     fn on_eaten(&mut self) {}
+    /// Called by the tank when this entity eats a fish (only Shark acts on it;
+    /// default is a no-op).
+    fn on_kill(&mut self) {}
 }
 
 const SINK_SPEED: f32 = 3.0; // units/sec
 const DISSOLVE_AFTER: f32 = 4.0; // seconds resting on the bottom
+
+const HUNT_SPEED: f32 = 10.0; // units/sec the shark steers toward prey
+const FULL_AFTER: usize = 3; // kills before the shark loses interest and leaves
 
 pub struct Food {
     pos: Vec2,
@@ -96,6 +102,8 @@ pub struct Shark {
     pos: Vec2,
     vx: f32,
     gone: bool,
+    eaten: usize,
+    facing_right: bool,
 }
 
 impl Shark {
@@ -104,6 +112,8 @@ impl Shark {
             pos,
             vx,
             gone: false,
+            eaten: 0,
+            facing_right: vx >= 0.0,
         }
     }
 }
@@ -122,14 +132,16 @@ impl Entity for Shark {
 
     fn sprite(&self) -> Sprite {
         // Base art faces right: dorsal fin, chunky body, eye/nose on the right.
-        // Bold + red gives the simple ASCII real weight on screen.
-        let mut s = Sprite::new(vec!["     /\\".into(), "<#######°>".into()])
+        // The body widens one segment per kill so fullness is legible at a
+        // glance; bold + red gives the simple ASCII real weight on screen.
+        let body = format!("<{}°>", "#".repeat(7 + self.eaten));
+        let mut s = Sprite::new(vec!["     /\\".into(), body])
             .bold()
             .colored(Color::Red);
-        s.facing = if self.vx < 0.0 {
-            crate::sprite::Facing::Left
+        s.facing = if self.facing_right {
+            Facing::Right
         } else {
-            crate::sprite::Facing::Right
+            Facing::Left
         };
         s
     }
@@ -153,6 +165,10 @@ impl Entity for Shark {
 
     fn dead(&self) -> bool {
         self.gone
+    }
+
+    fn on_kill(&mut self) {
+        self.eaten += 1;
     }
 }
 
@@ -200,6 +216,14 @@ mod tests {
             f.update(&ctx());
         }
         assert!(f.dead());
+    }
+
+    #[test]
+    fn shark_fattens_as_it_eats() {
+        let mut s = Shark::new(Vec2 { x: 0.0, y: 5.0 }, 6.0);
+        let w0 = s.sprite().width();
+        s.on_kill();
+        assert!(s.sprite().width() > w0, "shark body should widen per kill");
     }
 
     #[test]
