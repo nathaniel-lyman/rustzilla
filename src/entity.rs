@@ -120,9 +120,33 @@ impl Shark {
 
 impl Entity for Shark {
     fn update(&mut self, ctx: &TankCtx) {
-        self.pos.x += self.vx * ctx.dt;
+        // Hunting: while not yet full, steer toward the nearest fish in reach.
+        let target = if self.eaten < FULL_AFTER {
+            crate::fish::nearest(self.pos, &ctx.fish, crate::fish::hunt_radius(ctx.bounds))
+        } else {
+            None
+        };
+
+        let dx = if let Some(t) = target {
+            let h = self.sprite().height() as f32;
+            let stepped = crate::fish::step_toward(self.pos, t, HUNT_SPEED * ctx.dt);
+            let next = crate::fish::clamp_y(stepped, h, ctx.bounds);
+            let dx = next.x - self.pos.x;
+            self.pos = next;
+            dx
+        } else {
+            // Cruising: full, or no prey in range — move straight as before.
+            self.pos.x += self.vx * ctx.dt;
+            self.vx * ctx.dt
+        };
+
+        // Face the way it actually moved (negligible motion keeps the heading).
+        if dx.abs() > 1e-3 {
+            self.facing_right = dx > 0.0;
+        }
+
         let w = self.sprite().width() as f32;
-        // Despawn once fully past the far edge (in its travel direction).
+        // Despawn once fully past the far edge (in its cruise direction).
         let off_right = self.vx > 0.0 && self.pos.x > ctx.bounds.x + ctx.bounds.w;
         let off_left = self.vx < 0.0 && self.pos.x + w < ctx.bounds.x;
         if off_right || off_left {
@@ -224,6 +248,85 @@ mod tests {
         let w0 = s.sprite().width();
         s.on_kill();
         assert!(s.sprite().width() > w0, "shark body should widen per kill");
+    }
+
+    #[test]
+    fn shark_steers_toward_nearest_fish() {
+        let fish = Vec2 { x: 10.0, y: 15.0 }; // below and ahead, within hunt_radius
+        let c = TankCtx {
+            bounds: Rect {
+                x: 0.0,
+                y: 0.0,
+                w: 40.0,
+                h: 20.0,
+            },
+            dt: 1.0,
+            food: vec![],
+            fish: vec![fish],
+            shark: None,
+        };
+        let mut s = Shark::new(Vec2 { x: 5.0, y: 5.0 }, 6.0);
+        let before = s.pos().distance(fish);
+        s.update(&c);
+        assert!(s.pos().distance(fish) < before, "shark should close on prey");
+        assert!(
+            s.pos().y > 5.0,
+            "a pure cruise would keep y fixed; hunting moves it"
+        );
+    }
+
+    #[test]
+    fn full_shark_stops_hunting_and_cruises() {
+        let fish = Vec2 { x: 5.0, y: 15.0 }; // off-axis, within hunt_radius
+        let c = TankCtx {
+            bounds: Rect {
+                x: 0.0,
+                y: 0.0,
+                w: 40.0,
+                h: 20.0,
+            },
+            dt: 1.0,
+            food: vec![],
+            fish: vec![fish],
+            shark: None,
+        };
+        let mut s = Shark::new(Vec2 { x: 5.0, y: 5.0 }, 6.0);
+        for _ in 0..FULL_AFTER {
+            s.on_kill();
+        }
+        s.update(&c);
+        assert!(
+            (s.pos().y - 5.0).abs() < 1e-4,
+            "full shark ignores the off-axis fish"
+        );
+        assert!(s.pos().x > 5.0, "full shark cruises by +vx");
+    }
+
+    #[test]
+    fn hungry_shark_with_no_prey_cruises_off() {
+        // No fish present: a still-hungry shark must keep cruising straight and
+        // despawn, so it can never sit forever waiting — the tank is never stuck.
+        let c = TankCtx {
+            bounds: Rect {
+                x: 0.0,
+                y: 0.0,
+                w: 40.0,
+                h: 20.0,
+            },
+            dt: 1.0,
+            food: vec![],
+            fish: vec![],
+            shark: None,
+        };
+        let mut s = Shark::new(Vec2 { x: 0.0, y: 5.0 }, 6.0);
+        assert!(s.eaten < FULL_AFTER, "precondition: shark starts hungry");
+        for _ in 0..100 {
+            s.update(&c);
+        }
+        assert!(
+            s.dead(),
+            "hungry shark with no prey should cruise off and despawn"
+        );
     }
 
     #[test]
