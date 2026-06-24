@@ -61,6 +61,15 @@ fn ascii_fallback(c: char) -> char {
     }
 }
 
+/// Window pixels → tank grid `(cols, rows)`. Floors to whole cells; clamps each
+/// dimension to at least 1 so a transient 0-size window never yields a 0 grid
+/// (mirrors `main.rs`'s `.max(1)` guard on terminal size).
+pub fn grid_dims(px_w: usize, px_h: usize, cell_w: usize, cell_h: usize) -> (u16, u16) {
+    let cols = (px_w / cell_w.max(1)).max(1) as u16;
+    let rows = (px_h / cell_h.max(1)).max(1) as u16;
+    (cols, rows)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -84,5 +93,13 @@ mod tests {
         for c in ['#', '°', '•', '⊙'] {
             assert!(glyph(c).iter().any(|&r| r != 0), "{c:?} should not be blank");
         }
+    }
+
+    #[test]
+    fn grid_dims_floors_and_clamps() {
+        assert_eq!(grid_dims(240, 120, 24, 24), (10, 5)); // exact fit
+        assert_eq!(grid_dims(250, 130, 24, 24), (10, 5)); // remainder floored
+        assert_eq!(grid_dims(10, 10, 24, 24), (1, 1)); // sub-cell window → 1×1
+        assert_eq!(grid_dims(0, 0, 24, 24), (1, 1)); // degenerate 0-size → 1×1
     }
 }
