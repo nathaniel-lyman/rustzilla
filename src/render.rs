@@ -66,6 +66,45 @@ impl Frame {
     }
 }
 
+use crossterm::{cursor, execute, queue, style::Print, terminal};
+use std::io::{Stdout, Write};
+
+/// Enables raw mode + alternate screen on creation and unconditionally
+/// restores the terminal in `Drop` — so cleanup runs on normal exit AND
+/// during panic unwinding.
+pub struct TerminalGuard {
+    stdout: Stdout,
+}
+
+impl TerminalGuard {
+    pub fn enter() -> std::io::Result<TerminalGuard> {
+        let mut stdout = std::io::stdout();
+        terminal::enable_raw_mode()?;
+        execute!(stdout, terminal::EnterAlternateScreen, cursor::Hide)?;
+        Ok(TerminalGuard { stdout })
+    }
+
+    pub fn stdout(&mut self) -> &mut Stdout {
+        &mut self.stdout
+    }
+}
+
+impl Drop for TerminalGuard {
+    fn drop(&mut self) {
+        // Best-effort restore; ignore errors during teardown.
+        let _ = execute!(self.stdout, cursor::Show, terminal::LeaveAlternateScreen);
+        let _ = terminal::disable_raw_mode();
+    }
+}
+
+/// Write only the cells that changed since the previous frame.
+pub fn flush_diff(out: &mut Stdout, changes: &[(u16, u16, char)]) -> std::io::Result<()> {
+    for (x, y, c) in changes {
+        queue!(out, cursor::MoveTo(*x, *y), Print(c))?;
+    }
+    out.flush()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
