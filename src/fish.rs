@@ -347,6 +347,7 @@ mod tests {
             },
             dt: 1.0,
             food,
+            fish: vec![],
             shark,
         }
     }
@@ -404,6 +405,7 @@ mod tests {
             bounds,
             dt: 1.0,
             food: vec![pellet],
+            fish: vec![],
             shark: None,
         };
         // Fish at x=80 drifting RIGHT (away from the pellet on its left):
@@ -427,6 +429,7 @@ mod tests {
             bounds,
             dt: 1.0,
             food: vec![],
+            fish: vec![],
             shark: Some(shark),
         };
         // Fish 20 cells to the shark's right, drifting LEFT (toward it):

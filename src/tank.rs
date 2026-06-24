@@ -95,6 +95,12 @@ impl Tank {
             .filter(|e| e.kind() == Kind::Food)
             .map(|e| e.pos())
             .collect();
+        let fish = self
+            .entities
+            .iter()
+            .filter(|e| e.kind() == Kind::Fish)
+            .map(|e| e.pos())
+            .collect();
         let shark = self
             .entities
             .iter()
@@ -104,6 +110,7 @@ impl Tank {
             bounds: self.bounds,
             dt,
             food,
+            fish,
             shark,
         }
     }
@@ -262,5 +269,15 @@ mod tests {
         assert!(p.x <= 10.0 && p.y <= 6.0);
         assert_eq!(t.bounds.w, 10.0);
         assert_eq!(t.bounds.h, 6.0);
+    }
+
+    #[test]
+    fn build_ctx_snapshots_fish_positions() {
+        let mut t = Tank::new(40, 20);
+        t.add_entity(Box::new(Googly::new(Vec2 { x: 7.0, y: 3.0 }, 0.0)));
+        t.add_entity(Box::new(Googly::new(Vec2 { x: 9.0, y: 4.0 }, 0.0)));
+        let ctx = t.build_ctx(0.0);
+        assert_eq!(ctx.fish.len(), 2);
+        assert!(ctx.fish.contains(&Vec2 { x: 7.0, y: 3.0 }));
     }
 }

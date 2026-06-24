@@ -16,6 +16,7 @@ pub struct TankCtx {
     pub bounds: Rect,
     pub dt: f32,
     pub food: Vec<Vec2>,     // pellet positions this tick
+    pub fish: Vec<Vec2>,     // fish positions this tick (prey for the shark)
     pub shark: Option<Vec2>, // shark position, if one is present
 }
 
@@ -170,6 +171,7 @@ mod tests {
             },
             dt: 1.0,
             food: vec![],
+            fish: vec![],
             shark: None,
         }
     }
