@@ -18,12 +18,17 @@ fn fear_radius(bounds: Rect) -> f32 {
 
 pub struct Googly {
     pos: Vec2,
-    vx: f32, // horizontal drift, units/sec (sign = facing)
+    vx: f32, // horizontal drift, units/sec
+    facing_right: bool,
 }
 
 impl Googly {
     pub fn new(pos: Vec2, vx: f32) -> Googly {
-        Googly { pos, vx }
+        Googly {
+            pos,
+            vx,
+            facing_right: vx >= 0.0,
+        }
     }
 }
 
@@ -40,7 +45,9 @@ fn nearest_food(p: Vec2, food: &[Vec2], radius: f32) -> Option<Vec2> {
 }
 
 /// One drift/seek/flee step for a standard fish. `fears_shark` lets Ducky
-/// opt out of fleeing. Returns the new position.
+/// opt out of fleeing. Returns the new position and the intended horizontal
+/// delta (before edge-wrapping) so the caller can face the fish the way it
+/// actually moved — e.g. flipping around to chase food behind it.
 pub fn swim_step(
     pos: Vec2,
     vx: f32,
@@ -48,16 +55,15 @@ pub fn swim_step(
     sprite_h: f32,
     fears_shark: bool,
     ctx: &crate::entity::TankCtx,
-) -> Vec2 {
-    if fears_shark {
-        if let Some(s) = ctx.shark {
-            if pos.distance(s) <= fear_radius(ctx.bounds) {
-                let p = step_away(pos, s, FLEE_SPEED * ctx.dt);
-                return wrap_x(clamp_y(p, sprite_h, ctx.bounds), sprite_w, ctx.bounds);
-            }
-        }
-    }
-    let p = if let Some(target) = nearest_food(pos, &ctx.food, sense_radius(ctx.bounds)) {
+) -> (Vec2, f32) {
+    let intended = if fears_shark
+        && ctx
+            .shark
+            .is_some_and(|s| pos.distance(s) <= fear_radius(ctx.bounds))
+    {
+        // Flee directly away from the shark.
+        step_away(pos, ctx.shark.unwrap(), FLEE_SPEED * ctx.dt)
+    } else if let Some(target) = nearest_food(pos, &ctx.food, sense_radius(ctx.bounds)) {
         step_toward(pos, target, SEEK_SPEED * ctx.dt)
     } else {
         pos.add(Vec2 {
@@ -65,23 +71,43 @@ pub fn swim_step(
             y: 0.0,
         })
     };
-    wrap_x(clamp_y(p, sprite_h, ctx.bounds), sprite_w, ctx.bounds)
+    let dx = intended.x - pos.x;
+    let next = wrap_x(
+        clamp_y(intended, sprite_h, ctx.bounds),
+        sprite_w,
+        ctx.bounds,
+    );
+    (next, dx)
+}
+
+/// Update a stored facing from a horizontal delta, ignoring negligible motion
+/// (so a fish moving purely vertically keeps its current heading).
+fn face_from_dx(facing_right: &mut bool, dx: f32) {
+    if dx.abs() > 1e-3 {
+        *facing_right = dx > 0.0;
+    }
+}
+
+fn facing_of(facing_right: bool) -> crate::sprite::Facing {
+    if facing_right {
+        crate::sprite::Facing::Right
+    } else {
+        crate::sprite::Facing::Left
+    }
 }
 
 impl Entity for Googly {
     fn update(&mut self, ctx: &TankCtx) {
         let (w, h) = (self.sprite().width() as f32, self.sprite().height() as f32);
-        self.pos = swim_step(self.pos, self.vx, w, h, true, ctx);
+        let (next, dx) = swim_step(self.pos, self.vx, w, h, true, ctx);
+        self.pos = next;
+        face_from_dx(&mut self.facing_right, dx);
     }
 
     fn sprite(&self) -> Sprite {
         // Base art faces right (per the Sprite contract); mirrored when moving left.
         let mut s = Sprite::new(vec!["><(((°>".into()]).colored(Color::Cyan);
-        s.facing = if self.vx < 0.0 {
-            crate::sprite::Facing::Left
-        } else {
-            crate::sprite::Facing::Right
-        };
+        s.facing = facing_of(self.facing_right);
         s
     }
 
@@ -153,28 +179,31 @@ pub fn step_away(p: Vec2, threat: Vec2, speed: f32) -> Vec2 {
 pub struct Cool {
     pos: Vec2,
     vx: f32,
+    facing_right: bool,
 }
 impl Cool {
     pub fn new(pos: Vec2, vx: f32) -> Cool {
-        Cool { pos, vx }
+        Cool {
+            pos,
+            vx,
+            facing_right: vx >= 0.0,
+        }
     }
 }
 impl Entity for Cool {
     fn update(&mut self, ctx: &TankCtx) {
         let (w, h) = (self.sprite().width() as f32, self.sprite().height() as f32);
         // Too cool to hurry: cruises at half speed.
-        self.pos = swim_step(self.pos, self.vx * 0.5, w, h, true, ctx);
+        let (next, dx) = swim_step(self.pos, self.vx * 0.5, w, h, true, ctx);
+        self.pos = next;
+        face_from_dx(&mut self.facing_right, dx);
     }
     fn sprite(&self) -> Sprite {
         // Wearing shades (⊙ in place of the eye); body faces right.
         let mut s = Sprite::new(vec!["><(((⊙>".into()])
             .bold()
             .colored(Color::Blue);
-        s.facing = if self.vx < 0.0 {
-            crate::sprite::Facing::Left
-        } else {
-            crate::sprite::Facing::Right
-        };
+        s.facing = facing_of(self.facing_right);
         s
     }
     fn pos(&self) -> Vec2 {
@@ -200,10 +229,16 @@ pub struct Upsidedown {
     pos: Vec2,
     vx: f32,
     t: f32,
+    facing_right: bool,
 }
 impl Upsidedown {
     pub fn new(pos: Vec2, vx: f32) -> Upsidedown {
-        Upsidedown { pos, vx, t: 0.0 }
+        Upsidedown {
+            pos,
+            vx,
+            t: 0.0,
+            facing_right: vx >= 0.0,
+        }
     }
     fn flipped(&self) -> bool {
         // Flip state toggles every ~5 seconds of accumulated time.
@@ -214,15 +249,13 @@ impl Entity for Upsidedown {
     fn update(&mut self, ctx: &TankCtx) {
         self.t += ctx.dt;
         let (w, h) = (self.sprite().width() as f32, self.sprite().height() as f32);
-        self.pos = swim_step(self.pos, self.vx, w, h, true, ctx);
+        let (next, dx) = swim_step(self.pos, self.vx, w, h, true, ctx);
+        self.pos = next;
+        face_from_dx(&mut self.facing_right, dx);
     }
     fn sprite(&self) -> Sprite {
         let mut s = Sprite::new(vec!["><(((°>".into()]).colored(Color::Green);
-        s.facing = if self.vx < 0.0 {
-            crate::sprite::Facing::Left
-        } else {
-            crate::sprite::Facing::Right
-        };
+        s.facing = facing_of(self.facing_right);
         s.flip_v = self.flipped();
         s
     }
@@ -344,6 +377,16 @@ mod tests {
         // Moving left → mirrored to the left-facing form.
         let left = Googly::new(Vec2 { x: 0.0, y: 0.0 }, -3.0);
         assert_eq!(left.sprite().rendered_rows()[0], "<°)))><");
+    }
+
+    #[test]
+    fn fish_flips_to_face_the_food_it_chases() {
+        // Drifting right, but the food is to the LEFT and in range: the fish
+        // turns around to chase it, so its sprite must now face left.
+        let mut f = Googly::new(Vec2 { x: 20.0, y: 5.0 }, 3.0);
+        assert_eq!(f.sprite().rendered_rows()[0], "><(((°>"); // facing right
+        f.update(&ctx(vec![Vec2 { x: 12.0, y: 5.0 }], None));
+        assert_eq!(f.sprite().rendered_rows()[0], "<°)))><"); // flipped to face left
     }
 
     #[test]
