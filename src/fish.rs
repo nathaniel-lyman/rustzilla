@@ -16,10 +16,6 @@ impl Googly {
     pub fn new(pos: Vec2, vx: f32) -> Googly {
         Googly { pos, vx }
     }
-
-    fn sprite_w(&self) -> f32 {
-        self.sprite().width() as f32
-    }
 }
 
 /// Nearest position in `food` within `SENSE_RADIUS`, if any.
@@ -34,27 +30,36 @@ fn nearest_food(p: Vec2, food: &[Vec2]) -> Option<Vec2> {
         })
 }
 
-impl Entity for Googly {
-    fn update(&mut self, ctx: &TankCtx) {
-        let w = self.sprite_w();
-        // 1. Flee a close shark (highest priority).
+/// One drift/seek/flee step for a standard fish. `fears_shark` lets Ducky
+/// opt out of fleeing. Returns the new position.
+pub fn swim_step(
+    pos: Vec2,
+    vx: f32,
+    sprite_w: f32,
+    sprite_h: f32,
+    fears_shark: bool,
+    ctx: &crate::entity::TankCtx,
+) -> Vec2 {
+    if fears_shark {
         if let Some(s) = ctx.shark {
-            if self.pos.distance(s) <= FEAR_RADIUS {
-                self.pos = step_away(self.pos, s, FLEE_SPEED * ctx.dt);
-                self.pos = clamp_y(self.pos, self.sprite().height() as f32, ctx.bounds);
-                self.pos = wrap_x(self.pos, w, ctx.bounds);
-                return;
+            if pos.distance(s) <= FEAR_RADIUS {
+                let p = step_away(pos, s, FLEE_SPEED * ctx.dt);
+                return wrap_x(clamp_y(p, sprite_h, ctx.bounds), sprite_w, ctx.bounds);
             }
         }
-        // 2. Otherwise seek nearby food.
-        if let Some(target) = nearest_food(self.pos, &ctx.food) {
-            self.pos = step_toward(self.pos, target, SEEK_SPEED * ctx.dt);
-        } else {
-            // 3. Otherwise drift.
-            self.pos = self.pos.add(Vec2 { x: self.vx * ctx.dt, y: 0.0 });
-        }
-        self.pos = clamp_y(self.pos, self.sprite().height() as f32, ctx.bounds);
-        self.pos = wrap_x(self.pos, w, ctx.bounds);
+    }
+    let p = if let Some(target) = nearest_food(pos, &ctx.food) {
+        step_toward(pos, target, SEEK_SPEED * ctx.dt)
+    } else {
+        pos.add(Vec2 { x: vx * ctx.dt, y: 0.0 })
+    };
+    wrap_x(clamp_y(p, sprite_h, ctx.bounds), sprite_w, ctx.bounds)
+}
+
+impl Entity for Googly {
+    fn update(&mut self, ctx: &TankCtx) {
+        let (w, h) = (self.sprite().width() as f32, self.sprite().height() as f32);
+        self.pos = swim_step(self.pos, self.vx, w, h, true, ctx);
     }
 
     fn sprite(&self) -> Sprite {
