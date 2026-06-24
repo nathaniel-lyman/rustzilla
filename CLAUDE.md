@@ -10,6 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 cargo run                     # launch the live aquarium (interactive TUI)
+cargo run --features gui --bin aquarium   # launch the desktop-window aquarium (interactive window)
 cargo run --example preview   # print every entity's sprite + ANSI styling (no TUI; safe to run headless)
 cargo test                    # full logic suite
 cargo test --lib fish         # one module's tests
@@ -18,11 +19,11 @@ cargo clippy --all-targets    # lint (CI-clean: keep zero warnings)
 cargo fmt                     # format (keep `cargo fmt --check` clean)
 ```
 
-**Do not run `cargo run` to verify changes in a headless/non-interactive context — it enters an alternate-screen loop that only exits on `q` and will hang.** To eyeball sprite/art/style changes, use `cargo run --example preview` instead (it renders to stdout and exits). Logic changes are verified via `cargo test`.
+**Do not run `cargo run` to verify changes in a headless/non-interactive context — it enters an alternate-screen loop that only exits on `q` and will hang.** The same applies to `cargo run --features gui --bin aquarium` — it opens a desktop-window event loop that only exits on `q`/window-close and will hang a headless run; verify that frontend with `cargo build --features gui --bin aquarium` (compiles, doesn't launch) and `cargo test` for its logic, and eyeball it via a manual launch. To eyeball sprite/art/style changes, use `cargo run --example preview` instead (it renders to stdout and exits). Logic changes are verified via `cargo test`.
 
 ## Architecture
 
-A classic game loop over a double-buffered terminal canvas. `main.rs` is a thin binary; everything testable lives in `lib.rs` modules.
+A classic game loop over a double-buffered terminal canvas. There are two thin frontends over the same `lib`: `main.rs` (terminal, default `cargo run`) and `src/bin/aquarium.rs` (desktop window, `--features gui`). Both tick the same `Tank` and render it via `Tank::draw`; everything testable lives in `lib.rs` modules.
 
 - `geom.rs` — `Vec2` / `Rect` math. Positions/velocities are `f32` in terminal **cell** units; rounded to integers only at draw time.
 - `sprite.rs` — `Sprite` (a char grid) plus `Facing`, `flip_v`, and a `Style { bold, color }`. **Base art is authored facing right**; `rendered_rows()` mirrors it for `Facing::Left` (swapping paired glyphs like `<`↔`>`). Authoring art left-facing is the classic bug here — it renders reversed. `Color` is a terminal-agnostic enum so this module has no crossterm dependency.
@@ -30,7 +31,8 @@ A classic game loop over a double-buffered terminal canvas. `main.rs` is a thin 
 - `fish.rs` — the fish cast (`Googly`, `Cool`, `Upsidedown`, `Ducky`) plus shared movement helpers (`swim_step`, `wrap_x`, `clamp_y`, `step_toward`, `step_away`) and tank-scaled `sense_radius`/`fear_radius`.
 - `tank.rs` — `Tank`: owns `Vec<Box<dyn Entity>>`, ticks the world, resolves collisions, enforces the fish cap, and spawns.
 - `render.rs` — the in-memory `Frame` of styled `Cell`s (with `diff`), the `flush_diff` that emits per-cell crossterm bold/color, and `TerminalGuard`.
-- `input.rs` — non-blocking key polling → `Input` (`Action` | `Resize`).
+- `raster.rs` — the **window** render path: an embedded public-domain 8×8 bitmap font (`font8x8.rs`), `Color`→`u32` maps, and `blit` (a `Frame` → `Vec<u32>` pixel buffer). Pure and unit-tested; knows nothing about minifb. The terminal path (`render.rs`→crossterm) and window path (`raster.rs`→minifb) are symmetric frontends over the same `Tank`, so `lib` stays backend-agnostic.
+- `input.rs` — non-blocking key polling → `Input` (`Action` | `Resize`). The pure `action_for_key(char)` mapping is shared by both frontends (the terminal reads crossterm keys; `src/bin/aquarium.rs` maps minifb keys).
 
 ### The update pass (the key pattern)
 
