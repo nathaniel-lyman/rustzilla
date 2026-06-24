@@ -85,6 +85,7 @@ impl Tank {
             e.update(&ctx);
         }
         self.resolve_food();
+        self.resolve_shark();
         self.entities.retain(|e| !e.dead());
     }
 
@@ -128,6 +129,35 @@ impl Tank {
                 let b = e.bounds();
                 if fish_bounds.iter().any(|fb| fb.overlaps(b)) {
                     e.on_eaten();
+                }
+            }
+        }
+    }
+
+    /// A fish whose cell overlaps the shark's bounds is eaten; the shark
+    /// counts the kill. Two separate passes (read the shark's bounds, then
+    /// mark fish, then bump the shark) avoid aliasing `entities`, mirroring
+    /// `resolve_food`.
+    fn resolve_shark(&mut self) {
+        let shark_bounds = self
+            .entities
+            .iter()
+            .find(|e| e.kind() == Kind::Shark)
+            .map(|e| e.bounds());
+        let Some(sb) = shark_bounds else {
+            return;
+        };
+        let mut kills = 0;
+        for e in &mut self.entities {
+            if e.kind() == Kind::Fish && e.bounds().overlaps(sb) {
+                e.on_eaten();
+                kills += 1;
+            }
+        }
+        if kills > 0 {
+            if let Some(shark) = self.entities.iter_mut().find(|e| e.kind() == Kind::Shark) {
+                for _ in 0..kills {
+                    shark.on_kill();
                 }
             }
         }
@@ -182,7 +212,7 @@ impl Tank {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::fish::Googly;
+    use crate::fish::{Ducky, Googly};
 
     fn tank() -> Tank {
         Tank::new(40, 20)
@@ -269,6 +299,27 @@ mod tests {
         assert!(p.x <= 10.0 && p.y <= 6.0);
         assert_eq!(t.bounds.w, 10.0);
         assert_eq!(t.bounds.h, 6.0);
+    }
+
+    #[test]
+    fn shark_eats_overlapping_fish() {
+        let mut t = Tank::new(40, 20);
+        t.add_entity(Box::new(Googly::new(Vec2 { x: 5.0, y: 5.0 }, 0.0)));
+        t.add_entity(Box::new(Shark::new(Vec2 { x: 4.0, y: 5.0 }, 0.0)));
+        assert_eq!(t.count_kind(Kind::Fish), 1);
+        t.update(0.016); // one frame: the wide shark overlaps the fish
+        assert_eq!(t.count_kind(Kind::Fish), 0, "overlapping fish should be eaten");
+    }
+
+    #[test]
+    fn ducky_is_easy_prey() {
+        // Ducky never flees and is pinned to the surface, so a surfacing shark
+        // eats it readily (the emergent consequence the design calls out).
+        let mut t = Tank::new(40, 20);
+        t.add_entity(Box::new(Ducky::new(Vec2 { x: 6.0, y: 0.0 }, 0.0)));
+        t.add_entity(Box::new(Shark::new(Vec2 { x: 4.0, y: 0.0 }, 0.0)));
+        t.update(0.016);
+        assert_eq!(t.count_kind(Kind::Fish), 0);
     }
 
     #[test]
