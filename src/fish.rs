@@ -20,6 +20,7 @@ pub struct Googly {
     pos: Vec2,
     vx: f32, // horizontal drift, units/sec
     facing_right: bool,
+    eaten: bool,
 }
 
 impl Googly {
@@ -28,6 +29,7 @@ impl Googly {
             pos,
             vx,
             facing_right: vx >= 0.0,
+            eaten: false,
         }
     }
 }
@@ -129,7 +131,11 @@ impl Entity for Googly {
     }
 
     fn dead(&self) -> bool {
-        false
+        self.eaten
+    }
+
+    fn on_eaten(&mut self) {
+        self.eaten = true;
     }
 }
 
@@ -180,6 +186,7 @@ pub struct Cool {
     pos: Vec2,
     vx: f32,
     facing_right: bool,
+    eaten: bool,
 }
 impl Cool {
     pub fn new(pos: Vec2, vx: f32) -> Cool {
@@ -187,6 +194,7 @@ impl Cool {
             pos,
             vx,
             facing_right: vx >= 0.0,
+            eaten: false,
         }
     }
 }
@@ -221,7 +229,10 @@ impl Entity for Cool {
         Kind::Fish
     }
     fn dead(&self) -> bool {
-        false
+        self.eaten
+    }
+    fn on_eaten(&mut self) {
+        self.eaten = true;
     }
 }
 
@@ -230,6 +241,7 @@ pub struct Upsidedown {
     vx: f32,
     t: f32,
     facing_right: bool,
+    eaten: bool,
 }
 impl Upsidedown {
     pub fn new(pos: Vec2, vx: f32) -> Upsidedown {
@@ -238,6 +250,7 @@ impl Upsidedown {
             vx,
             t: 0.0,
             facing_right: vx >= 0.0,
+            eaten: false,
         }
     }
     fn flipped(&self) -> bool {
@@ -274,17 +287,25 @@ impl Entity for Upsidedown {
         Kind::Fish
     }
     fn dead(&self) -> bool {
-        false
+        self.eaten
+    }
+    fn on_eaten(&mut self) {
+        self.eaten = true;
     }
 }
 
 pub struct Ducky {
     pos: Vec2,
     vx: f32,
+    eaten: bool,
 }
 impl Ducky {
     pub fn new(pos: Vec2, vx: f32) -> Ducky {
-        Ducky { pos, vx }
+        Ducky {
+            pos,
+            vx,
+            eaten: false,
+        }
     }
 }
 impl Entity for Ducky {
@@ -324,7 +345,10 @@ impl Entity for Ducky {
         Kind::Fish
     }
     fn dead(&self) -> bool {
-        false
+        self.eaten
+    }
+    fn on_eaten(&mut self) {
+        self.eaten = true;
     }
 }
 
@@ -349,6 +373,21 @@ mod tests {
             food,
             fish: vec![],
             shark,
+        }
+    }
+
+    #[test]
+    fn all_fish_are_mortal() {
+        let mut fish: Vec<Box<dyn Entity>> = vec![
+            Box::new(Googly::new(Vec2 { x: 1.0, y: 1.0 }, 1.0)),
+            Box::new(Cool::new(Vec2 { x: 1.0, y: 1.0 }, 1.0)),
+            Box::new(Upsidedown::new(Vec2 { x: 1.0, y: 1.0 }, 1.0)),
+            Box::new(Ducky::new(Vec2 { x: 1.0, y: 1.0 }, 1.0)),
+        ];
+        for f in &mut fish {
+            assert!(!f.dead(), "fish should start alive");
+            f.on_eaten();
+            assert!(f.dead(), "fish should be dead after on_eaten");
         }
     }
 
