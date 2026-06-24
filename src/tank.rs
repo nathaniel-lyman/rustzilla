@@ -1,5 +1,5 @@
 use crate::entity::{Entity, Food, Kind, Shark, TankCtx};
-use crate::fish::{Ducky, Googly, Tophat, Upsidedown};
+use crate::fish::{Cool, Ducky, Googly, Upsidedown};
 use crate::geom::{Rect, Vec2};
 
 pub struct Tank {
@@ -72,7 +72,7 @@ impl Tank {
 
         let fish: Box<dyn Entity> = match n % 4 {
             0 => Box::new(Googly::new(pos, vx)),
-            1 => Box::new(Tophat::new(pos, vx)),
+            1 => Box::new(Cool::new(pos, vx)),
             2 => Box::new(Upsidedown::new(pos, vx)),
             _ => Box::new(Ducky::new(pos, vx)),
         };

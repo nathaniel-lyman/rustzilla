@@ -150,24 +150,24 @@ pub fn step_away(p: Vec2, threat: Vec2, speed: f32) -> Vec2 {
     p.add(dir.scaled(speed))
 }
 
-pub struct Tophat {
+pub struct Cool {
     pos: Vec2,
     vx: f32,
 }
-impl Tophat {
-    pub fn new(pos: Vec2, vx: f32) -> Tophat {
-        Tophat { pos, vx }
+impl Cool {
+    pub fn new(pos: Vec2, vx: f32) -> Cool {
+        Cool { pos, vx }
     }
 }
-impl Entity for Tophat {
+impl Entity for Cool {
     fn update(&mut self, ctx: &TankCtx) {
         let (w, h) = (self.sprite().width() as f32, self.sprite().height() as f32);
-        // Dignified: drifts at half speed.
+        // Too cool to hurry: cruises at half speed.
         self.pos = swim_step(self.pos, self.vx * 0.5, w, h, true, ctx);
     }
     fn sprite(&self) -> Sprite {
-        // Hat sits over the head (right side); body faces right.
-        let mut s = Sprite::new(vec!["    _o_".into(), "><(((°>".into()]);
+        // Wearing shades (⊙ in place of the eye); body faces right.
+        let mut s = Sprite::new(vec!["><(((⊙>".into()]);
         s.facing = if self.vx < 0.0 {
             crate::sprite::Facing::Left
         } else {
@@ -409,10 +409,10 @@ mod tests {
     }
 
     #[test]
-    fn tophat_and_upsidedown_are_fish() {
-        let t = Tophat::new(Vec2 { x: 3.0, y: 3.0 }, 2.0);
+    fn cool_and_upsidedown_are_fish() {
+        let c = Cool::new(Vec2 { x: 3.0, y: 3.0 }, 2.0);
         let u = Upsidedown::new(Vec2 { x: 3.0, y: 8.0 }, 2.0);
-        assert_eq!(t.kind(), Kind::Fish);
+        assert_eq!(c.kind(), Kind::Fish);
         assert_eq!(u.kind(), Kind::Fish);
     }
 
