@@ -1,5 +1,5 @@
 use crate::geom::{Rect, Vec2};
-use crate::sprite::Sprite;
+use crate::sprite::{Color, Sprite};
 
 /// What an entity is, so the tank can build context, enforce the fish cap,
 /// and resolve fish-vs-food collisions without downcasting.
@@ -62,7 +62,7 @@ impl Entity for Food {
     }
 
     fn sprite(&self) -> Sprite {
-        Sprite::new(vec!["•".into()])
+        Sprite::new(vec!["•".into()]).bold().colored(Color::Yellow)
     }
 
     fn pos(&self) -> Vec2 {
@@ -120,8 +120,11 @@ impl Entity for Shark {
     }
 
     fn sprite(&self) -> Sprite {
-        // Base art faces right: fin over the body, eye/nose on the right.
-        let mut s = Sprite::new(vec!["  /\\  ".into(), "<```°>".into()]);
+        // Base art faces right: dorsal fin, chunky body, eye/nose on the right.
+        // Bold + red gives the simple ASCII real weight on screen.
+        let mut s = Sprite::new(vec!["     /\\".into(), "<#######°>".into()])
+            .bold()
+            .colored(Color::Red);
         s.facing = if self.vx < 0.0 {
             crate::sprite::Facing::Left
         } else {

@@ -1,6 +1,6 @@
 use crate::entity::{Entity, Kind, TankCtx};
 use crate::geom::{Rect, Vec2};
-use crate::sprite::Sprite;
+use crate::sprite::{Color, Sprite};
 
 const FLEE_SPEED: f32 = 8.0;
 const SEEK_SPEED: f32 = 4.0;
@@ -76,7 +76,7 @@ impl Entity for Googly {
 
     fn sprite(&self) -> Sprite {
         // Base art faces right (per the Sprite contract); mirrored when moving left.
-        let mut s = Sprite::new(vec!["><(((°>".into()]);
+        let mut s = Sprite::new(vec!["><(((°>".into()]).colored(Color::Cyan);
         s.facing = if self.vx < 0.0 {
             crate::sprite::Facing::Left
         } else {
@@ -167,7 +167,9 @@ impl Entity for Cool {
     }
     fn sprite(&self) -> Sprite {
         // Wearing shades (⊙ in place of the eye); body faces right.
-        let mut s = Sprite::new(vec!["><(((⊙>".into()]);
+        let mut s = Sprite::new(vec!["><(((⊙>".into()])
+            .bold()
+            .colored(Color::Blue);
         s.facing = if self.vx < 0.0 {
             crate::sprite::Facing::Left
         } else {
@@ -215,7 +217,7 @@ impl Entity for Upsidedown {
         self.pos = swim_step(self.pos, self.vx, w, h, true, ctx);
     }
     fn sprite(&self) -> Sprite {
-        let mut s = Sprite::new(vec!["><(((°>".into()]);
+        let mut s = Sprite::new(vec!["><(((°>".into()]).colored(Color::Green);
         s.facing = if self.vx < 0.0 {
             crate::sprite::Facing::Left
         } else {
@@ -264,7 +266,9 @@ impl Entity for Ducky {
         self.pos.y = ctx.bounds.y; // pinned to the top row
     }
     fn sprite(&self) -> Sprite {
-        let mut s = Sprite::new(vec!["_(°)>".into()]);
+        let mut s = Sprite::new(vec!["_(°)>".into()])
+            .bold()
+            .colored(Color::Yellow);
         s.facing = if self.vx < 0.0 {
             crate::sprite::Facing::Left
         } else {

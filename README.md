@@ -31,11 +31,15 @@ is always restored cleanly on exit).
 
 ## The cast
 
-- **Googly** `><(((°>` — your baseline drifter; the oversized eyes are the gag.
-- **Cool** `><(((⊙>` — a fish in shades, too cool to hurry (cruises at half-speed).
-- **Upside-down** — periodically flips and swims inverted for a while, as one does.
-- **Ducky** `_(°)<` — a rubber duck bobbing at the surface, clearly in the wrong
-  app. Ignores food, and does **not** flee the shark (it has no idea).
+- **Googly** `><(((°>` — your baseline drifter (cyan); the oversized eyes are the gag.
+- **Cool** `><(((⊙>` — a fish in shades (bold blue), too cool to hurry (half-speed).
+- **Upside-down** `><(((°>` — green; periodically flips and swims inverted, as one does.
+- **Ducky** `_(°)>` — a bold-yellow rubber duck bobbing at the surface, clearly in the
+  wrong app. Ignores food, and does **not** flee the shark (it has no idea).
+
+Everything is rendered with a small **style layer** (`Style { bold, color }` on each
+sprite): the shark is **bold red** for weight, food is bright yellow, and the fish
+carry subtle tints. The ASCII stays simple; the terminal supplies the heft.
 
 ## How it works
 

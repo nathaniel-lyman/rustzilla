@@ -4,13 +4,33 @@ pub enum Facing {
     Right,
 }
 
+/// Foreground colors we use. Kept terminal-agnostic here; `render` maps these
+/// to crossterm colors so the pure sprite layer needs no terminal dependency.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Color {
+    Red,
+    Yellow,
+    Green,
+    Cyan,
+    Blue,
+    White,
+}
+
+/// How a sprite is rendered: bold and/or colored. Default is plain text.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct Style {
+    pub bold: bool,
+    pub color: Option<Color>,
+}
+
 /// A small fixed grid of characters, drawn from `rows` (which are authored
-/// facing right, upright). `facing`/`flip_v` are applied at render time.
+/// facing right, upright). `facing`/`flip_v`/`style` are applied at render time.
 #[derive(Clone, Debug)]
 pub struct Sprite {
     pub rows: Vec<String>,
     pub facing: Facing,
     pub flip_v: bool,
+    pub style: Style,
 }
 
 impl Sprite {
@@ -19,7 +39,20 @@ impl Sprite {
             rows,
             facing: Facing::Right,
             flip_v: false,
+            style: Style::default(),
         }
+    }
+
+    /// Builder: render this sprite bold.
+    pub fn bold(mut self) -> Sprite {
+        self.style.bold = true;
+        self
+    }
+
+    /// Builder: render this sprite in `color`.
+    pub fn colored(mut self, color: Color) -> Sprite {
+        self.style.color = Some(color);
+        self
     }
 
     pub fn width(&self) -> usize {
