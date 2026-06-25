@@ -70,6 +70,54 @@ fn ascii_fallback(c: char) -> char {
     }
 }
 
+/// Window pixels → tank grid `(cols, rows)`. Cells are `scale` wide and
+/// `2*scale` tall so on-screen pixels stay square. Clamps each dim to >= 1.
+pub fn grid_dims_px(px_w: usize, px_h: usize, scale: usize) -> (u16, u16) {
+    let cols = (px_w / scale.max(1)).max(1) as u16;
+    let rows = (px_h / (2 * scale.max(1))).max(1) as u16;
+    (cols, rows)
+}
+
+/// Render a `PixelFrame` into a `px_w × px_h` buffer. Each pixel is a
+/// `scale × scale` square block; the top pixel sits at window-y `2*cy*scale`,
+/// the bottom at `(2*cy+1)*scale`. Transparent pixels leave water (`BG`).
+/// Blocks past the buffer edge clip — never a panic.
+pub fn blit_pixels(
+    frame: &crate::render::PixelFrame,
+    scale: usize,
+    px_w: usize,
+    px_h: usize,
+) -> Vec<u32> {
+    let mut buf = vec![BG; px_w * px_h];
+    let s = scale.max(1);
+    let mut paint = |sub_x: usize, sub_y: usize, color: u32| {
+        for dy in 0..s {
+            let y = sub_y * s + dy;
+            if y >= px_h {
+                break;
+            }
+            for dx in 0..s {
+                let x = sub_x * s + dx;
+                if x >= px_w {
+                    break;
+                }
+                buf[y * px_w + x] = color;
+            }
+        }
+    };
+    for cy in 0..frame.height {
+        for cx in 0..frame.width {
+            if let Some(c) = frame.pixel(cx, 2 * cy) {
+                paint(cx as usize, (2 * cy) as usize, rgb(c));
+            }
+            if let Some(c) = frame.pixel(cx, 2 * cy + 1) {
+                paint(cx as usize, (2 * cy + 1) as usize, rgb(c));
+            }
+        }
+    }
+    buf
+}
+
 /// Window pixels → tank grid `(cols, rows)`. Floors to whole cells; clamps each
 /// dimension to at least 1 so a transient 0-size window never yields a 0 grid
 /// (mirrors `main.rs`'s `.max(1)` guard on terminal size).
@@ -126,7 +174,7 @@ pub fn blit(frame: &Frame, scale: u32, px_w: usize, px_h: usize) -> Vec<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sprite::Sprite;
+    use crate::sprite::{Color, Sprite};
 
     #[test]
     fn bold_uses_distinct_color() {
@@ -232,5 +280,38 @@ mod tests {
         f.draw_sprite(1, 1, &Sprite::new(vec!["#".into()]));
         let buf = blit(&f, 2, 24, 24); // 16px cells; cell (1,1) spills past 24
         assert_eq!(buf.len(), 24 * 24); // reached here = no panic
+    }
+
+    #[test]
+    fn grid_dims_px_uses_tall_cells() {
+        // Cells are `scale` wide and `2*scale` tall, so vertical divides by 2*scale.
+        assert_eq!(grid_dims_px(240, 240, 6), (40, 20));
+        assert_eq!(grid_dims_px(10, 10, 6), (1, 1)); // clamps to >= 1
+    }
+
+    #[test]
+    fn blit_pixels_blank_frame_is_all_water() {
+        let f = crate::render::PixelFrame::new(3, 2);
+        let buf = blit_pixels(&f, 4, 12, 16);
+        assert!(buf.iter().all(|&p| p == BG));
+    }
+
+    #[test]
+    fn blit_pixels_lights_correct_half_blocks() {
+        let mut f = crate::render::PixelFrame::new(2, 1); // canvas 2x2 px
+        f.set_pixel(0, 0, Color::Cyan); // top half of cell (0,0)
+        f.set_pixel(0, 1, Color::Red); // bottom half of cell (0,0)
+        let buf = blit_pixels(&f, 1, 2, 2); // scale 1 -> 1px blocks; buffer 2x2
+        assert_eq!(buf[0], rgb(Color::Cyan)); // (0,0) top: row 0, col 0
+        assert_eq!(buf[2], rgb(Color::Red)); // (0,1) bottom: row 1, col 0
+        assert_eq!(buf[1], BG); // neighbour cell stays water: row 0, col 1
+    }
+
+    #[test]
+    fn blit_pixels_clips_past_the_edge() {
+        let mut f = crate::render::PixelFrame::new(2, 2);
+        f.set_pixel(1, 3, Color::Cyan);
+        let buf = blit_pixels(&f, 2, 3, 3); // deliberately too-small buffer
+        assert_eq!(buf.len(), 3 * 3); // reached here = no panic
     }
 }
