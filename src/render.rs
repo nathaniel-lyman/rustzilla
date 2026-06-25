@@ -106,12 +106,56 @@ use crate::sprite::Color;
 
 fn to_ct(color: Color) -> CtColor {
     match color {
-        Color::Red => CtColor::Red,
-        Color::Yellow => CtColor::Yellow,
-        Color::Green => CtColor::Green,
-        Color::Cyan => CtColor::Cyan,
-        Color::Blue => CtColor::Blue,
-        Color::White => CtColor::White,
+        Color::Red => CtColor::Rgb {
+            r: 0xD8,
+            g: 0x4A,
+            b: 0x4A,
+        },
+        Color::Yellow => CtColor::Rgb {
+            r: 0xF2,
+            g: 0xC6,
+            b: 0x41,
+        },
+        Color::Green => CtColor::Rgb {
+            r: 0x4F,
+            g: 0xCF,
+            b: 0x6F,
+        },
+        Color::Cyan => CtColor::Rgb {
+            r: 0x49,
+            g: 0xD0,
+            b: 0xE0,
+        },
+        Color::Blue => CtColor::Rgb {
+            r: 0x5B,
+            g: 0x8C,
+            b: 0xFF,
+        },
+        Color::White => CtColor::Rgb {
+            r: 0xF2,
+            g: 0xF2,
+            b: 0xF2,
+        },
+        Color::Orange => CtColor::Rgb {
+            r: 0xE8,
+            g: 0x90,
+            b: 0x2F,
+        },
+        Color::Black => CtColor::Rgb {
+            r: 0x14,
+            g: 0x14,
+            b: 0x14,
+        },
+        Color::Grey => CtColor::Rgb {
+            r: 0x8A,
+            g: 0x93,
+            b: 0xA0,
+        },
+        Color::Belly => CtColor::Rgb {
+            r: 0xC9,
+            g: 0xD0,
+            b: 0xD8,
+        },
     }
 }
 

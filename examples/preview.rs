@@ -18,6 +18,7 @@ fn ansi_prefix(s: &Sprite) -> String {
             Color::Blue => 34,
             Color::Cyan => 36,
             Color::White => 37,
+            Color::Orange | Color::Black | Color::Grey | Color::Belly => 37,
         };
         out.push_str(&format!("\x1b[{code}m"));
     }

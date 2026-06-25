@@ -9,12 +9,16 @@ pub const BG: u32 = 0x000A_1428;
 /// `render::to_ct` (which maps the same enum to crossterm).
 pub fn rgb(color: Color) -> u32 {
     match color {
-        Color::Red => 0x00E0_4040,
-        Color::Yellow => 0x00E0_C040,
-        Color::Green => 0x0040_C040,
-        Color::Cyan => 0x0040_C0C0,
-        Color::Blue => 0x0040_60E0,
-        Color::White => 0x00D0_D0D0,
+        Color::Red => 0x00D8_4A4A,
+        Color::Yellow => 0x00F2_C641,
+        Color::Green => 0x004F_CF6F,
+        Color::Cyan => 0x0049_D0E0,
+        Color::Blue => 0x005B_8CFF,
+        Color::White => 0x00F2_F2F2,
+        Color::Orange => 0x00E8_902F,
+        Color::Black => 0x0014_1414,
+        Color::Grey => 0x008A_93A0,
+        Color::Belly => 0x00C9_D0D8,
     }
 }
 
@@ -27,6 +31,10 @@ pub fn rgb_bold(color: Color) -> u32 {
         Color::Cyan => 0x0070_FFFF,
         Color::Blue => 0x0070_90FF,
         Color::White => 0x00FF_FFFF,
+        Color::Orange => 0x00E8_902F,
+        Color::Black => 0x0014_1414,
+        Color::Grey => 0x008A_93A0,
+        Color::Belly => 0x00C9_D0D8,
     }
 }
 
