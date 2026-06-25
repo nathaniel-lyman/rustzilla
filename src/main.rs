@@ -21,6 +21,7 @@ fn main() -> std::io::Result<()> {
     let frame_budget = Duration::from_millis(60); // ~16 FPS
     let mut prev = Frame::new(cols, rows);
     let mut last = Instant::now();
+    let mut needs_full = true;
 
     loop {
         let tick_start = Instant::now();
@@ -37,6 +38,7 @@ fn main() -> std::io::Result<()> {
                     rows = h.max(1);
                     tank.resize(cols, rows);
                     prev = Frame::new(cols, rows);
+                    needs_full = true;
                     execute!(
                         guard.stdout(),
                         crossterm::terminal::Clear(crossterm::terminal::ClearType::All)
@@ -54,8 +56,13 @@ fn main() -> std::io::Result<()> {
         // --- render ---
         let mut frame = Frame::new(cols, rows);
         tank.draw(&mut frame);
-        let changes = frame.diff(&prev);
+        let changes = if needs_full {
+            frame.full_changes()
+        } else {
+            frame.diff(&prev)
+        };
         flush_diff(guard.stdout(), &changes)?;
+        needs_full = false;
         prev = frame;
 
         // --- frame budget ---

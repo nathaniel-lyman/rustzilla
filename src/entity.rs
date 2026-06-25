@@ -1,5 +1,5 @@
 use crate::geom::{Rect, Vec2};
-use crate::sprite::{Color, Facing, Sprite};
+use crate::sprite::{Color, Facing, PixelSprite};
 
 /// What an entity is, so the tank can build context, enforce the fish cap,
 /// and resolve fish-vs-food collisions without downcasting.
@@ -22,7 +22,7 @@ pub struct TankCtx {
 
 pub trait Entity {
     fn update(&mut self, ctx: &TankCtx);
-    fn sprite(&self) -> Sprite;
+    fn sprite(&self) -> PixelSprite;
     fn pos(&self) -> Vec2;
     fn bounds(&self) -> Rect;
     fn kind(&self) -> Kind;
@@ -41,6 +41,22 @@ const DISSOLVE_AFTER: f32 = 4.0; // seconds resting on the bottom
 
 const HUNT_SPEED: f32 = 10.0; // units/sec the shark steers toward prey
 const FULL_AFTER: usize = 3; // kills before the shark loses interest and leaves
+
+/// Build the shark's pixel rows; the mid-body widens one column per kill.
+fn shark_rows(eaten: usize) -> Vec<String> {
+    let m = 7 + eaten;
+    // mid-body width `m` grows one column per kill. Each row is a fixed tail
+    // (left) + stretchable mid + fixed head (right): 'g' body, 'e' belly, 'k'
+    // eye, 'r' mouth.
+    let tail = ["...", "..g", ".gg", "ggg", "ggg", ".ee", "..e", "..."];
+    let mid = ['.', 'g', 'g', 'g', 'g', 'e', 'e', '.'];
+    let head = [
+        ".ggg.", "ggggg", "ggkgg", "ggggg", "ggggr", "eeeee", ".eee.", ".....",
+    ];
+    (0..8)
+        .map(|r| format!("{}{}{}", tail[r], mid[r].to_string().repeat(m), head[r]))
+        .collect()
+}
 
 pub struct Food {
     pos: Vec2,
@@ -68,8 +84,9 @@ impl Entity for Food {
         }
     }
 
-    fn sprite(&self) -> Sprite {
-        Sprite::new(vec!["•".into()]).bold().colored(Color::Yellow)
+    fn sprite(&self) -> PixelSprite {
+        // A small 2x2 orange pellet.
+        PixelSprite::from_art(&["oo", "oo"], &[('o', Color::Orange)])
     }
 
     fn pos(&self) -> Vec2 {
@@ -77,11 +94,12 @@ impl Entity for Food {
     }
 
     fn bounds(&self) -> Rect {
+        let s = self.sprite();
         Rect {
             x: self.pos.x,
             y: self.pos.y,
-            w: 1.0,
-            h: 1.0,
+            w: s.cell_w() as f32,
+            h: s.cell_h() as f32,
         }
     }
 
@@ -132,7 +150,7 @@ impl Entity for Shark {
         };
 
         let dx = if let Some(t) = target {
-            let h = sprite.height() as f32;
+            let h = sprite.cell_h() as f32;
             let stepped = crate::fish::step_toward(self.pos, t, HUNT_SPEED * ctx.dt);
             let next = crate::fish::clamp_y(stepped, h, ctx.bounds);
             let dx = next.x - self.pos.x;
@@ -149,7 +167,7 @@ impl Entity for Shark {
             self.facing_right = dx > 0.0;
         }
 
-        let w = sprite.width() as f32;
+        let w = sprite.cell_w() as f32;
         // Despawn once fully past the far edge (in its cruise direction).
         let off_right = self.vx > 0.0 && self.pos.x > ctx.bounds.x + ctx.bounds.w;
         let off_left = self.vx < 0.0 && self.pos.x + w < ctx.bounds.x;
@@ -158,14 +176,18 @@ impl Entity for Shark {
         }
     }
 
-    fn sprite(&self) -> Sprite {
-        // Base art faces right: dorsal fin, chunky body, eye/nose on the right.
-        // The body widens one segment per kill so fullness is legible at a
-        // glance; bold + red gives the simple ASCII real weight on screen.
-        let body = format!("<{}°>", "#".repeat(7 + self.eaten));
-        let mut s = Sprite::new(vec!["     /\\".into(), body])
-            .bold()
-            .colored(Color::Red);
+    fn sprite(&self) -> PixelSprite {
+        let rows = shark_rows(self.eaten);
+        let refs: Vec<&str> = rows.iter().map(|s| s.as_str()).collect();
+        let mut s = PixelSprite::from_art(
+            &refs,
+            &[
+                ('g', Color::Grey),
+                ('e', Color::Belly),
+                ('k', Color::Black),
+                ('r', Color::Red),
+            ],
+        );
         s.facing = if self.facing_right {
             Facing::Right
         } else {
@@ -179,11 +201,12 @@ impl Entity for Shark {
     }
 
     fn bounds(&self) -> Rect {
+        let s = self.sprite();
         Rect {
             x: self.pos.x,
             y: self.pos.y,
-            w: self.sprite().width() as f32,
-            h: self.sprite().height() as f32,
+            w: s.cell_w() as f32,
+            h: s.cell_h() as f32,
         }
     }
 

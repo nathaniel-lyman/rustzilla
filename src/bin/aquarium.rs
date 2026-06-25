@@ -1,5 +1,5 @@
 //! Desktop-window frontend: the same Tank as the terminal app, rendered into a
-//! resizable window via a hand-rolled glyph blitter over a minifb pixel buffer.
+//! resizable window by painting each pixel as a square block over a minifb pixel buffer.
 //! This is I/O glue (no unit tests) — verified by compiling and by launching.
 //! Launch: `cargo run --features gui --bin aquarium`.
 use minifb::{Key, KeyRepeat, Window, WindowOptions};
@@ -9,8 +9,7 @@ use rustzilla::render::Frame;
 use rustzilla::tank::Tank;
 use std::time::{Duration, Instant};
 
-const SCALE: u32 = 3; // 8×8 font → 24×24 px cells
-const CELL: usize = 8 * SCALE as usize;
+const SCALE: usize = 6; // each pixel is a 6x6 block; cells are 6 wide x 12 tall
 const FRAME_BUDGET: Duration = Duration::from_millis(60); // ~16 FPS
 const MAX_DT: f32 = 0.1; // clamp so a paused/occluded window doesn't teleport fish
 
@@ -38,7 +37,7 @@ fn main() {
     )
     .expect("failed to open window");
 
-    let (mut cols, mut rows) = raster::grid_dims(px_w, px_h, CELL, CELL);
+    let (mut cols, mut rows) = raster::grid_dims(px_w, px_h, SCALE);
     let mut tank = Tank::new(cols, rows);
     for _ in 0..6 {
         tank.add_fish_at(); // seed a few fish, like the terminal app
@@ -66,7 +65,7 @@ fn main() {
         if (w, h) != (px_w, px_h) {
             px_w = w;
             px_h = h;
-            let (c, r) = raster::grid_dims(px_w, px_h, CELL, CELL);
+            let (c, r) = raster::grid_dims(px_w, px_h, SCALE);
             if (c, r) != (cols, rows) {
                 cols = c;
                 rows = r;
