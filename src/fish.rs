@@ -5,6 +5,27 @@ use crate::sprite::{Color, PixelSprite};
 const FLEE_SPEED: f32 = 8.0;
 const SEEK_SPEED: f32 = 4.0;
 
+/// Peak vertical drift speed (cells/sec) while a fish is idly cruising. Kept
+/// small so the wander is a gentle bob, not a frantic bounce.
+const WANDER_SPEED: f32 = 2.5;
+
+/// Subtle vertical drift velocity (cells/sec) for an idly-cruising fish.
+/// Summing two sine waves whose frequencies don't share a common period makes
+/// the path wander up and down organically instead of tracing one clean,
+/// obviously-repeating curve. `phase` (a per-fish constant) staggers the cast
+/// so they don't all bob in lockstep. Only used in the drift branch — a fish
+/// seeking food or fleeing a shark already moves with intent.
+fn vertical_wander(t: f32, phase: f32) -> f32 {
+    WANDER_SPEED * (0.7 * (t * 0.9 + phase).sin() + 0.3 * (t * 2.1 + phase * 1.7).sin())
+}
+
+/// A stable per-fish wander phase derived from spawn position, so each fish's
+/// vertical bob is out of step with its neighbours. Spawns already spread their
+/// positions, so deriving the phase here needs no extra constructor argument.
+fn wander_phase(pos: Vec2) -> f32 {
+    pos.x * 0.7 + pos.y * 1.3
+}
+
 /// How far a fish notices food, scaled to the tank so reactions stay visible
 /// in a large terminal (a fixed radius is invisible in a 150-cell-wide tank).
 fn sense_radius(bounds: Rect) -> f32 {
@@ -27,6 +48,8 @@ pub fn hunt_radius(bounds: Rect) -> f32 {
 pub struct Googly {
     pos: Vec2,
     vx: f32, // horizontal drift, units/sec
+    t: f32,  // accumulated time, for the vertical wander
+    phase: f32,
     facing_right: bool,
     eaten: bool,
 }
@@ -36,6 +59,8 @@ impl Googly {
         Googly {
             pos,
             vx,
+            t: 0.0,
+            phase: wander_phase(pos),
             facing_right: vx >= 0.0,
             eaten: false,
         }
@@ -57,12 +82,16 @@ pub fn nearest(p: Vec2, points: &[Vec2], radius: f32) -> Option<Vec2> {
 }
 
 /// One drift/seek/flee step for a standard fish. `fears_shark` lets Ducky
-/// opt out of fleeing. Returns the new position and the intended horizontal
-/// delta (before edge-wrapping) so the caller can face the fish the way it
-/// actually moved — e.g. flipping around to chase food behind it.
+/// opt out of fleeing. `vy` is a gentle vertical drift applied only while
+/// idly cruising (see `vertical_wander`), so an idle fish bobs up and down
+/// instead of tracking a flat line; seeking and fleeing override it. Returns
+/// the new position and the intended horizontal delta (before edge-wrapping)
+/// so the caller can face the fish the way it actually moved — e.g. flipping
+/// around to chase food behind it.
 pub fn swim_step(
     pos: Vec2,
     vx: f32,
+    vy: f32,
     sprite_w: f32,
     sprite_h: f32,
     fears_shark: bool,
@@ -80,7 +109,7 @@ pub fn swim_step(
     } else {
         pos.add(Vec2 {
             x: vx * ctx.dt,
-            y: 0.0,
+            y: vy * ctx.dt,
         })
     };
     let dx = intended.x - pos.x;
@@ -110,9 +139,11 @@ fn facing_of(facing_right: bool) -> crate::sprite::Facing {
 
 impl Entity for Googly {
     fn update(&mut self, ctx: &TankCtx) {
+        self.t += ctx.dt;
         let s = self.sprite();
         let (w, h) = (s.cell_w() as f32, s.cell_h() as f32);
-        let (next, dx) = swim_step(self.pos, self.vx, w, h, true, ctx);
+        let vy = vertical_wander(self.t, self.phase);
+        let (next, dx) = swim_step(self.pos, self.vx, vy, w, h, true, ctx);
         self.pos = next;
         face_from_dx(&mut self.facing_right, dx);
     }
@@ -208,6 +239,8 @@ pub fn step_away(p: Vec2, threat: Vec2, speed: f32) -> Vec2 {
 pub struct Cool {
     pos: Vec2,
     vx: f32,
+    t: f32,
+    phase: f32,
     facing_right: bool,
     eaten: bool,
 }
@@ -216,6 +249,8 @@ impl Cool {
         Cool {
             pos,
             vx,
+            t: 0.0,
+            phase: wander_phase(pos),
             facing_right: vx >= 0.0,
             eaten: false,
         }
@@ -223,10 +258,12 @@ impl Cool {
 }
 impl Entity for Cool {
     fn update(&mut self, ctx: &TankCtx) {
+        self.t += ctx.dt;
         let s = self.sprite();
         let (w, h) = (s.cell_w() as f32, s.cell_h() as f32);
-        // Too cool to hurry: cruises at half speed.
-        let (next, dx) = swim_step(self.pos, self.vx * 0.5, w, h, true, ctx);
+        // Too cool to hurry: cruises at half speed, with a lazy half-amplitude bob.
+        let vy = vertical_wander(self.t, self.phase) * 0.5;
+        let (next, dx) = swim_step(self.pos, self.vx * 0.5, vy, w, h, true, ctx);
         self.pos = next;
         face_from_dx(&mut self.facing_right, dx);
     }
@@ -274,6 +311,7 @@ pub struct Upsidedown {
     pos: Vec2,
     vx: f32,
     t: f32,
+    phase: f32,
     facing_right: bool,
     eaten: bool,
 }
@@ -283,6 +321,7 @@ impl Upsidedown {
             pos,
             vx,
             t: 0.0,
+            phase: wander_phase(pos),
             facing_right: vx >= 0.0,
             eaten: false,
         }
@@ -297,7 +336,8 @@ impl Entity for Upsidedown {
         self.t += ctx.dt;
         let s = self.sprite();
         let (w, h) = (s.cell_w() as f32, s.cell_h() as f32);
-        let (next, dx) = swim_step(self.pos, self.vx, w, h, true, ctx);
+        let vy = vertical_wander(self.t, self.phase);
+        let (next, dx) = swim_step(self.pos, self.vx, vy, w, h, true, ctx);
         self.pos = next;
         face_from_dx(&mut self.facing_right, dx);
     }
@@ -490,6 +530,72 @@ mod tests {
         f.update(&ctx(vec![], None));
         assert!((f.pos().x - start.x).abs() > 0.0);
         assert_eq!(f.kind(), Kind::Fish);
+    }
+
+    #[test]
+    fn vertical_wander_pushes_both_up_and_down_but_stays_gentle() {
+        let phase = 0.3;
+        let mut min = f32::MAX;
+        let mut max = f32::MIN;
+        for i in 0..400 {
+            let v = vertical_wander(i as f32 * 0.05, phase);
+            min = min.min(v);
+            max = max.max(v);
+        }
+        // It must swing both ways so a fish rises and sinks, not just one.
+        assert!(max > 0.5, "wander should push the fish down sometimes");
+        assert!(min < -0.5, "wander should push the fish up sometimes");
+        // ...but never exceed the gentle peak speed (no frantic bouncing).
+        assert!(max <= WANDER_SPEED + 1e-3 && min >= -WANDER_SPEED - 1e-3);
+    }
+
+    #[test]
+    fn drifting_fish_wanders_up_and_down() {
+        // With no food or shark to chase, a fish used to track a perfectly flat
+        // line. Now it should bob both above and below where it started.
+        let bounds = Rect {
+            x: 0.0,
+            y: 0.0,
+            w: 60.0,
+            h: 40.0,
+        };
+        let mk = || TankCtx {
+            bounds,
+            dt: 0.1,
+            food: vec![],
+            fish: vec![],
+            shark: None,
+        };
+        let mut f = Googly::new(Vec2 { x: 30.0, y: 20.0 }, 3.0);
+        let start_y = f.pos().y;
+        let (mut up, mut down) = (false, false);
+        for _ in 0..400 {
+            f.update(&mk());
+            if f.pos().y < start_y - 0.3 {
+                up = true;
+            }
+            if f.pos().y > start_y + 0.3 {
+                down = true;
+            }
+        }
+        assert!(
+            up && down,
+            "a drifting fish should wander both above and below its start"
+        );
+    }
+
+    #[test]
+    fn neighbouring_fish_do_not_bob_in_lockstep() {
+        // Two fish spawned at different positions get different wander phases,
+        // so their vertical drift is out of sync (no uniform up/down marching).
+        let a = Googly::new(Vec2 { x: 10.0, y: 5.0 }, 3.0);
+        let b = Googly::new(Vec2 { x: 25.0, y: 12.0 }, 3.0);
+        let va = vertical_wander(1.0, a.phase);
+        let vb = vertical_wander(1.0, b.phase);
+        assert!(
+            (va - vb).abs() > 1e-3,
+            "fish at different spots should wander out of phase"
+        );
     }
 
     #[test]
