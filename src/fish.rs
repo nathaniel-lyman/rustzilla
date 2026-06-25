@@ -1,6 +1,6 @@
 use crate::entity::{Entity, Kind, TankCtx};
 use crate::geom::{Rect, Vec2};
-use crate::sprite::{Color, Sprite};
+use crate::sprite::{Color, PixelSprite};
 
 const FLEE_SPEED: f32 = 8.0;
 const SEEK_SPEED: f32 = 4.0;
@@ -110,15 +110,26 @@ fn facing_of(facing_right: bool) -> crate::sprite::Facing {
 
 impl Entity for Googly {
     fn update(&mut self, ctx: &TankCtx) {
-        let (w, h) = (self.sprite().width() as f32, self.sprite().height() as f32);
+        let (w, h) = (self.sprite().cell_w() as f32, self.sprite().cell_h() as f32);
         let (next, dx) = swim_step(self.pos, self.vx, w, h, true, ctx);
         self.pos = next;
         face_from_dx(&mut self.facing_right, dx);
     }
 
-    fn sprite(&self) -> Sprite {
-        // Base art faces right (per the Sprite contract); mirrored when moving left.
-        let mut s = Sprite::new(vec!["><(((°>".into()]).colored(Color::Cyan);
+    fn sprite(&self) -> PixelSprite {
+        let mut s = PixelSprite::from_art(
+            &[
+                ".....bbbbb...",
+                "..b.bbbbbbbb.",
+                ".bb.bbbbwwwbb",
+                "bbb.bbbbwkwbb",
+                "bbb.bbbbwwwbb",
+                ".bb.bbbbbbbbb",
+                "..b.bbbbbbbb.",
+                ".....bbbbb...",
+            ],
+            &[('b', Color::Cyan), ('w', Color::White), ('k', Color::Black)],
+        );
         s.facing = facing_of(self.facing_right);
         s
     }
@@ -131,8 +142,8 @@ impl Entity for Googly {
         Rect {
             x: self.pos.x,
             y: self.pos.y,
-            w: self.sprite().width() as f32,
-            h: self.sprite().height() as f32,
+            w: self.sprite().cell_w() as f32,
+            h: self.sprite().cell_h() as f32,
         }
     }
 
@@ -210,17 +221,26 @@ impl Cool {
 }
 impl Entity for Cool {
     fn update(&mut self, ctx: &TankCtx) {
-        let (w, h) = (self.sprite().width() as f32, self.sprite().height() as f32);
+        let (w, h) = (self.sprite().cell_w() as f32, self.sprite().cell_h() as f32);
         // Too cool to hurry: cruises at half speed.
         let (next, dx) = swim_step(self.pos, self.vx * 0.5, w, h, true, ctx);
         self.pos = next;
         face_from_dx(&mut self.facing_right, dx);
     }
-    fn sprite(&self) -> Sprite {
-        // Wearing shades (⊙ in place of the eye); body faces right.
-        let mut s = Sprite::new(vec!["><(((⊙>".into()])
-            .bold()
-            .colored(Color::Blue);
+    fn sprite(&self) -> PixelSprite {
+        let mut s = PixelSprite::from_art(
+            &[
+                ".....bbbbb...",
+                "..b.bbbbbbbb.",
+                ".bb.bbbbkkkkk",
+                "bbb.bbbbkkkkk",
+                "bbb.bbbbbbbbb",
+                ".bb.bbbbbbbbb",
+                "..b.bbbbbbbb.",
+                ".....bbbbb...",
+            ],
+            &[('b', Color::Blue), ('k', Color::Black)],
+        );
         s.facing = facing_of(self.facing_right);
         s
     }
@@ -231,8 +251,8 @@ impl Entity for Cool {
         Rect {
             x: self.pos.x,
             y: self.pos.y,
-            w: self.sprite().width() as f32,
-            h: self.sprite().height() as f32,
+            w: self.sprite().cell_w() as f32,
+            h: self.sprite().cell_h() as f32,
         }
     }
     fn kind(&self) -> Kind {
@@ -271,13 +291,25 @@ impl Upsidedown {
 impl Entity for Upsidedown {
     fn update(&mut self, ctx: &TankCtx) {
         self.t += ctx.dt;
-        let (w, h) = (self.sprite().width() as f32, self.sprite().height() as f32);
+        let (w, h) = (self.sprite().cell_w() as f32, self.sprite().cell_h() as f32);
         let (next, dx) = swim_step(self.pos, self.vx, w, h, true, ctx);
         self.pos = next;
         face_from_dx(&mut self.facing_right, dx);
     }
-    fn sprite(&self) -> Sprite {
-        let mut s = Sprite::new(vec!["><(((°>".into()]).colored(Color::Green);
+    fn sprite(&self) -> PixelSprite {
+        let mut s = PixelSprite::from_art(
+            &[
+                ".....bbbbb...",
+                "..b.bbbbbbbb.",
+                ".bb.bbbbbbbbb",
+                "bbb.bbbbbkbbb",
+                "bbb.bbbbbbbbb",
+                ".bb.bbbbbbbbb",
+                "..b.bbbbbbbb.",
+                ".....bbbbb...",
+            ],
+            &[('b', Color::Green), ('k', Color::Black)],
+        );
         s.facing = facing_of(self.facing_right);
         s.flip_v = self.flipped();
         s
@@ -289,8 +321,8 @@ impl Entity for Upsidedown {
         Rect {
             x: self.pos.x,
             y: self.pos.y,
-            w: self.sprite().width() as f32,
-            h: self.sprite().height() as f32,
+            w: self.sprite().cell_w() as f32,
+            h: self.sprite().cell_h() as f32,
         }
     }
     fn kind(&self) -> Kind {
@@ -321,7 +353,7 @@ impl Ducky {
 impl Entity for Ducky {
     fn update(&mut self, ctx: &TankCtx) {
         // Bobs along the surface; fears nothing, ignores food entirely.
-        let w = self.sprite().width() as f32;
+        let w = self.sprite().cell_w() as f32;
         let p = self.pos.add(Vec2 {
             x: self.vx * ctx.dt,
             y: 0.0,
@@ -329,10 +361,24 @@ impl Entity for Ducky {
         self.pos = wrap_x(p, w, ctx.bounds);
         self.pos.y = ctx.bounds.y; // pinned to the top row
     }
-    fn sprite(&self) -> Sprite {
-        let mut s = Sprite::new(vec!["_(°)>".into()])
-            .bold()
-            .colored(Color::Yellow);
+    fn sprite(&self) -> PixelSprite {
+        let mut s = PixelSprite::from_art(
+            &[
+                "....ddd......",
+                "...ddddd.....",
+                "...dddkd.....",
+                "...dddddooo..",
+                ".ddddddddd...",
+                "ddddddddddd..",
+                ".ddddddddd...",
+                "...ddddd.....",
+            ],
+            &[
+                ('d', Color::Yellow),
+                ('o', Color::Orange),
+                ('k', Color::Black),
+            ],
+        );
         s.facing = if self.vx < 0.0 {
             crate::sprite::Facing::Left
         } else {
@@ -347,8 +393,8 @@ impl Entity for Ducky {
         Rect {
             x: self.pos.x,
             y: self.pos.y,
-            w: self.sprite().width() as f32,
-            h: self.sprite().height() as f32,
+            w: self.sprite().cell_w() as f32,
+            h: self.sprite().cell_h() as f32,
         }
     }
     fn kind(&self) -> Kind {
@@ -449,22 +495,28 @@ mod tests {
 
     #[test]
     fn fish_faces_its_travel_direction() {
-        // Moving right → right-facing art as-is.
         let right = Googly::new(Vec2 { x: 0.0, y: 0.0 }, 3.0);
-        assert_eq!(right.sprite().rendered_rows()[0], "><(((°>");
-        // Moving left → mirrored to the left-facing form.
         let left = Googly::new(Vec2 { x: 0.0, y: 0.0 }, -3.0);
-        assert_eq!(left.sprite().rendered_rows()[0], "<°)))><");
+        // Left-facing is the column-reverse of right-facing, row for row.
+        let r = right.sprite().rendered_rows();
+        let l = left.sprite().rendered_rows();
+        for (rr, lr) in r.iter().zip(l.iter()) {
+            let mut rev = rr.clone();
+            rev.reverse();
+            assert_eq!(&rev, lr);
+        }
     }
 
     #[test]
     fn fish_flips_to_face_the_food_it_chases() {
-        // Drifting right, but the food is to the LEFT and in range: the fish
-        // turns around to chase it, so its sprite must now face left.
+        // Drifting right, but food is to the LEFT and in range: the fish turns to
+        // chase it, so its sprite flips from right-facing to left-facing.
         let mut f = Googly::new(Vec2 { x: 20.0, y: 5.0 }, 3.0);
-        assert_eq!(f.sprite().rendered_rows()[0], "><(((°>"); // facing right
+        assert_eq!(f.sprite().rendered_rows()[0], f.sprite().pixels[0]); // facing right
         f.update(&ctx(vec![Vec2 { x: 12.0, y: 5.0 }], None));
-        assert_eq!(f.sprite().rendered_rows()[0], "<°)))><"); // flipped to face left
+        let mut reversed = f.sprite().pixels[0].clone();
+        reversed.reverse();
+        assert_eq!(f.sprite().rendered_rows()[0], reversed); // flipped to face left
     }
 
     #[test]

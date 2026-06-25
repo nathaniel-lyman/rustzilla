@@ -201,12 +201,9 @@ mod tests {
     }
 
     #[test]
-    fn every_entity_glyph_renders_non_blank() {
-        // Regression guard: every glyph any entity actually draws must render
-        // as something visible in the window. If a future sprite introduces a
-        // new non-ASCII glyph, it would silently become a blank hole on screen
-        // (the terminal would still show it) — this fails loudly instead,
-        // pointing at the missing `ascii_fallback` entry.
+    fn every_entity_sprite_is_well_formed() {
+        // Regression guard: every entity's pixel sprite must be rectangular and
+        // light at least one pixel, so nothing renders as a fully blank hole.
         use crate::entity::{Entity, Food, Shark};
         use crate::fish::{Cool, Ducky, Googly, Upsidedown};
         use crate::geom::Vec2;
@@ -220,16 +217,14 @@ mod tests {
             Box::new(Shark::new(p, 1.0)),
         ];
         for e in &cast {
-            for row in e.sprite().rendered_rows() {
-                for c in row.chars().filter(|&c| c != ' ') {
-                    assert!(
-                        glyph(c).iter().any(|&r| r != 0),
-                        "glyph for {c:?} (U+{:04X}) renders blank in the window; \
-                         add an ascii_fallback entry for it",
-                        c as u32
-                    );
-                }
-            }
+            let rows = e.sprite().rendered_rows();
+            assert!(!rows.is_empty(), "sprite has no rows");
+            let w = rows[0].len();
+            assert!(rows.iter().all(|r| r.len() == w), "sprite rows are ragged");
+            assert!(
+                rows.iter().flatten().any(|p| p.is_some()),
+                "sprite renders fully blank"
+            );
         }
     }
 

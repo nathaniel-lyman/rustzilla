@@ -1,7 +1,7 @@
 use crate::entity::{Entity, Food, Kind, Shark, TankCtx};
 use crate::fish::{Cool, Ducky, Googly, Upsidedown};
 use crate::geom::{Rect, Vec2};
-use crate::render::Frame;
+use crate::render::PixelFrame;
 
 pub struct Tank {
     pub bounds: Rect,
@@ -42,7 +42,7 @@ impl Tank {
 
     /// Draw every entity into `frame` at its rounded cell position. Shared by
     /// the terminal and window frontends so both render identically.
-    pub fn draw(&self, frame: &mut Frame) {
+    pub fn draw(&self, frame: &mut PixelFrame) {
         for e in &self.entities {
             let p = e.pos();
             frame.draw_sprite(p.x.round() as i32, p.y.round() as i32, &e.sprite());
@@ -230,13 +230,15 @@ mod tests {
 
     #[test]
     fn draw_places_entities_at_rounded_positions() {
-        use crate::render::Frame;
+        use crate::render::PixelFrame;
         let mut t = Tank::new(20, 10);
-        t.drop_food_at(5.0); // a Food pellet '•' starts at the top: (5, 0)
-        let mut frame = Frame::new(20, 10);
+        t.drop_food_at(5.0); // pellet starts at the top: cell (5, 0)
+        let mut frame = PixelFrame::new(20, 10);
         t.draw(&mut frame);
-        assert_eq!(frame.cell(5, 0), '•'); // pellet drawn at its rounded cell
-        assert_eq!(frame.cell(0, 9), ' '); // elsewhere stays blank
+        // The pellet lights at least one pixel within its cell (top-left px = (5, 0)).
+        assert!(frame.pixel(5, 0).is_some());
+        // A far-away region stays transparent (water).
+        assert_eq!(frame.pixel(0, 18), None);
     }
 
     #[test]
@@ -335,16 +337,16 @@ mod tests {
             "overlapping fish should be eaten"
         );
         // The kill must also register on the shark itself: its body widens one
-        // segment per kill, so the base-10 sprite is now 11 wide. This pins the
-        // resolve_shark -> on_kill wiring, which the fish-count check alone misses.
+        // segment per kill. This pins the resolve_shark -> on_kill wiring, which
+        // the fish-count check alone misses.
+        let fresh = crate::entity::Shark::new(crate::geom::Vec2 { x: 0.0, y: 0.0 }, 0.0);
         let shark = t
             .entities()
             .iter()
             .find(|e| e.kind() == Kind::Shark)
-            .expect("shark still present");
-        assert_eq!(
-            shark.sprite().width(),
-            11,
+            .expect("shark present");
+        assert!(
+            shark.sprite().width() > fresh.sprite().width(),
             "shark should fatten after counting the kill"
         );
     }

@@ -1,6 +1,6 @@
 use crossterm::execute;
 use rustzilla::input::{poll_input, Action, Input};
-use rustzilla::render::{flush_diff, Frame, TerminalGuard};
+use rustzilla::render::{flush_pixels, PixelFrame, TerminalGuard};
 use rustzilla::tank::Tank;
 use std::time::{Duration, Instant};
 
@@ -19,8 +19,9 @@ fn main() -> std::io::Result<()> {
     }
 
     let frame_budget = Duration::from_millis(60); // ~16 FPS
-    let mut prev = Frame::new(cols, rows);
+    let mut prev = PixelFrame::new(cols, rows);
     let mut last = Instant::now();
+    let mut needs_full = true;
 
     loop {
         let tick_start = Instant::now();
@@ -36,7 +37,8 @@ fn main() -> std::io::Result<()> {
                     cols = w.max(1);
                     rows = h.max(1);
                     tank.resize(cols, rows);
-                    prev = Frame::new(cols, rows);
+                    prev = PixelFrame::new(cols, rows);
+                    needs_full = true;
                     execute!(
                         guard.stdout(),
                         crossterm::terminal::Clear(crossterm::terminal::ClearType::All)
@@ -52,10 +54,15 @@ fn main() -> std::io::Result<()> {
         tank.update(dt);
 
         // --- render ---
-        let mut frame = Frame::new(cols, rows);
+        let mut frame = PixelFrame::new(cols, rows);
         tank.draw(&mut frame);
-        let changes = frame.diff(&prev);
-        flush_diff(guard.stdout(), &changes)?;
+        let changes = if needs_full {
+            frame.full_changes()
+        } else {
+            frame.diff(&prev)
+        };
+        flush_pixels(guard.stdout(), &changes)?;
+        needs_full = false;
         prev = frame;
 
         // --- frame budget ---
