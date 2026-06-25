@@ -1,5 +1,5 @@
 //! Desktop-window frontend: the same Tank as the terminal app, rendered into a
-//! resizable window via a hand-rolled glyph blitter over a minifb pixel buffer.
+//! resizable window by painting each pixel as a square block over a minifb pixel buffer.
 //! This is I/O glue (no unit tests) — verified by compiling and by launching.
 //! Launch: `cargo run --features gui --bin aquarium`.
 use minifb::{Key, KeyRepeat, Window, WindowOptions};

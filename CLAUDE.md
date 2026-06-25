@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 cargo run                     # launch the live aquarium (interactive TUI)
 cargo run --features gui --bin aquarium   # launch the desktop-window aquarium (interactive window)
-cargo run --example preview   # print every entity's sprite + ANSI styling (no TUI; safe to run headless)
+cargo run --example preview   # print every entity's sprite as ANSI half-blocks (no TUI; safe to run headless)
 cargo test                    # full logic suite
 cargo test --lib fish         # one module's tests
 cargo test fish_flips_to_face_the_food_it_chases   # a single test by name
