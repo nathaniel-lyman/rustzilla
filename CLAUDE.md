@@ -52,7 +52,7 @@ Facing must track **actual** horizontal motion, not the static drift `vx`: a fis
 
 ### Rendering & weight
 
-Each `Cell` stores two stacked pixel colors (top and bottom halves of a terminal cell). `diff` reports a change when **either** half differs from the previous frame; `flush_diff` sets both fg and bg per cell and emits `▀`, so there is no color bleed between cells. "Weight" on screen comes from per-pixel palette color — the shark is grey pixel art with a black eye and a red mouth; food is a small orange pellet — not from a bold/style layer (there is no `Style` struct). `sprite.rs` defines the palette enum (`Color`); `render.rs` maps it to crossterm truecolor and `raster.rs` maps it to `u32` for the window path.
+Each `Cell` stores two stacked pixel colors (top and bottom halves of a terminal cell). `diff` reports a change when **either** half differs from the previous frame; `flush_diff` sets both fg and bg per cell and emits `▀`, so there is no color bleed between cells. "Weight" on screen comes from per-pixel palette color — the shark is grey pixel art with fins, a black eye, gill slits, and a row of white teeth; food is a small orange pellet — not from a bold/style layer (there is no `Style` struct). `sprite.rs` defines the palette enum (`Color`); `render.rs` maps it to crossterm truecolor and `raster.rs` maps it to `u32` for the window path.
 
 ### Interaction scaling
 
