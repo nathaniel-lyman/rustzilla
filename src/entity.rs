@@ -312,7 +312,7 @@ mod tests {
         let s = Shark::new(Vec2 { x: 0.0, y: 0.0 }, 1.0).sprite();
         let px: Vec<Color> = s.pixels.iter().flatten().flatten().copied().collect();
         let blacks = px.iter().filter(|c| **c == Color::Black).count();
-        // One eye pixel + two 2-px gill slits = 5 black (the old art had just 1).
+        // One eye pixel + two gill slits (2 px tall each) = 5 black (old art had 1).
         assert!(
             blacks >= 3,
             "eye and gill slits should be present (got {blacks})"
