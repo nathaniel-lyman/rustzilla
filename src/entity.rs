@@ -45,15 +45,30 @@ const FULL_AFTER: usize = 3; // kills before the shark loses interest and leaves
 /// Build the shark's pixel rows; the mid-body widens one column per kill.
 fn shark_rows(eaten: usize) -> Vec<String> {
     let m = 7 + eaten;
-    // mid-body width `m` grows one column per kill. Each row is a fixed tail
-    // (left) + stretchable mid + fixed head (right): 'g' body, 'e' belly, 'k'
-    // eye, 'r' mouth.
-    let tail = ["...", "..g", ".gg", "ggg", "ggg", ".ee", "..e", "..."];
-    let mid = ['.', 'g', 'g', 'g', 'g', 'e', 'e', '.'];
-    let head = [
-        ".ggg.", "ggggg", "ggkgg", "ggggg", "ggggr", "eeeee", ".eee.", ".....",
+    // Fixed tail (left) + stretchable mid (one column repeated `m` times, grows
+    // one column per kill) + fixed head (right). Every feature — fins, eye,
+    // gill slits, teeth — lives in a fixed block, so a kill only lengthens the
+    // smooth midsection. Palette: 'g' body, 'e' belly, 'k' eye+gills, 'w' teeth.
+    let tail = [
+        "g...", "gg..", ".gg.", "..gg", "...g", "...g", "...g", "...g", "..gg", ".gg.", "gg..",
+        "....",
     ];
-    (0..8)
+    let mid = ['.', '.', '.', 'g', 'g', 'g', 'g', 'e', 'e', '.', '.', '.'];
+    let head = [
+        "..gg.....",
+        ".gggg....",
+        ".ggggg...",
+        "gggggggg.",
+        "ggggggkgg",
+        "ggkgkgggg",
+        "ggkgkgggg",
+        "eeeeewwww",
+        "eeeeeeee.",
+        ".ggg.....",
+        ".gg......",
+        ".........",
+    ];
+    (0..12)
         .map(|r| format!("{}{}{}", tail[r], mid[r].to_string().repeat(m), head[r]))
         .collect()
 }
@@ -185,7 +200,7 @@ impl Entity for Shark {
                 ('g', Color::Grey),
                 ('e', Color::Belly),
                 ('k', Color::Black),
-                ('r', Color::Red),
+                ('w', Color::White),
             ],
         );
         s.facing = if self.facing_right {
@@ -275,6 +290,33 @@ mod tests {
         let w0 = s.sprite().width();
         s.on_kill();
         assert!(s.sprite().width() > w0, "shark body should widen per kill");
+    }
+
+    #[test]
+    fn shark_sprite_has_expected_base_size() {
+        let s = Shark::new(Vec2 { x: 0.0, y: 0.0 }, 1.0).sprite();
+        assert_eq!(s.width(), 20, "base shark is 20 px wide");
+        assert_eq!(s.height(), 12, "base shark is 12 px tall");
+    }
+
+    #[test]
+    fn shark_sprite_uses_white_teeth_not_red() {
+        let s = Shark::new(Vec2 { x: 0.0, y: 0.0 }, 1.0).sprite();
+        let px: Vec<Color> = s.pixels.iter().flatten().flatten().copied().collect();
+        assert!(px.contains(&Color::White), "teeth should be white");
+        assert!(!px.contains(&Color::Red), "the old red mouth pixel is gone");
+    }
+
+    #[test]
+    fn shark_sprite_keeps_eye_and_gills() {
+        let s = Shark::new(Vec2 { x: 0.0, y: 0.0 }, 1.0).sprite();
+        let px: Vec<Color> = s.pixels.iter().flatten().flatten().copied().collect();
+        let blacks = px.iter().filter(|c| **c == Color::Black).count();
+        // One eye pixel + two 2-px gill slits = 5 black (the old art had just 1).
+        assert!(
+            blacks >= 3,
+            "eye and gill slits should be present (got {blacks})"
+        );
     }
 
     #[test]
