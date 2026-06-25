@@ -110,7 +110,8 @@ fn facing_of(facing_right: bool) -> crate::sprite::Facing {
 
 impl Entity for Googly {
     fn update(&mut self, ctx: &TankCtx) {
-        let (w, h) = (self.sprite().cell_w() as f32, self.sprite().cell_h() as f32);
+        let s = self.sprite();
+        let (w, h) = (s.cell_w() as f32, s.cell_h() as f32);
         let (next, dx) = swim_step(self.pos, self.vx, w, h, true, ctx);
         self.pos = next;
         face_from_dx(&mut self.facing_right, dx);
@@ -139,11 +140,12 @@ impl Entity for Googly {
     }
 
     fn bounds(&self) -> Rect {
+        let s = self.sprite();
         Rect {
             x: self.pos.x,
             y: self.pos.y,
-            w: self.sprite().cell_w() as f32,
-            h: self.sprite().cell_h() as f32,
+            w: s.cell_w() as f32,
+            h: s.cell_h() as f32,
         }
     }
 
@@ -221,7 +223,8 @@ impl Cool {
 }
 impl Entity for Cool {
     fn update(&mut self, ctx: &TankCtx) {
-        let (w, h) = (self.sprite().cell_w() as f32, self.sprite().cell_h() as f32);
+        let s = self.sprite();
+        let (w, h) = (s.cell_w() as f32, s.cell_h() as f32);
         // Too cool to hurry: cruises at half speed.
         let (next, dx) = swim_step(self.pos, self.vx * 0.5, w, h, true, ctx);
         self.pos = next;
@@ -248,11 +251,12 @@ impl Entity for Cool {
         self.pos
     }
     fn bounds(&self) -> Rect {
+        let s = self.sprite();
         Rect {
             x: self.pos.x,
             y: self.pos.y,
-            w: self.sprite().cell_w() as f32,
-            h: self.sprite().cell_h() as f32,
+            w: s.cell_w() as f32,
+            h: s.cell_h() as f32,
         }
     }
     fn kind(&self) -> Kind {
@@ -291,7 +295,8 @@ impl Upsidedown {
 impl Entity for Upsidedown {
     fn update(&mut self, ctx: &TankCtx) {
         self.t += ctx.dt;
-        let (w, h) = (self.sprite().cell_w() as f32, self.sprite().cell_h() as f32);
+        let s = self.sprite();
+        let (w, h) = (s.cell_w() as f32, s.cell_h() as f32);
         let (next, dx) = swim_step(self.pos, self.vx, w, h, true, ctx);
         self.pos = next;
         face_from_dx(&mut self.facing_right, dx);
@@ -318,11 +323,12 @@ impl Entity for Upsidedown {
         self.pos
     }
     fn bounds(&self) -> Rect {
+        let s = self.sprite();
         Rect {
             x: self.pos.x,
             y: self.pos.y,
-            w: self.sprite().cell_w() as f32,
-            h: self.sprite().cell_h() as f32,
+            w: s.cell_w() as f32,
+            h: s.cell_h() as f32,
         }
     }
     fn kind(&self) -> Kind {
@@ -353,7 +359,8 @@ impl Ducky {
 impl Entity for Ducky {
     fn update(&mut self, ctx: &TankCtx) {
         // Bobs along the surface; fears nothing, ignores food entirely.
-        let w = self.sprite().cell_w() as f32;
+        let s = self.sprite();
+        let w = s.cell_w() as f32;
         let p = self.pos.add(Vec2 {
             x: self.vx * ctx.dt,
             y: 0.0,
@@ -390,11 +397,12 @@ impl Entity for Ducky {
         self.pos
     }
     fn bounds(&self) -> Rect {
+        let s = self.sprite();
         Rect {
             x: self.pos.x,
             y: self.pos.y,
-            w: self.sprite().cell_w() as f32,
-            h: self.sprite().cell_h() as f32,
+            w: s.cell_w() as f32,
+            h: s.cell_h() as f32,
         }
     }
     fn kind(&self) -> Kind {

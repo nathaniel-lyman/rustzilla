@@ -1,7 +1,7 @@
 use crate::entity::{Entity, Food, Kind, Shark, TankCtx};
 use crate::fish::{Cool, Ducky, Googly, Upsidedown};
 use crate::geom::{Rect, Vec2};
-use crate::render::PixelFrame;
+use crate::render::Frame;
 
 pub struct Tank {
     pub bounds: Rect,
@@ -42,7 +42,7 @@ impl Tank {
 
     /// Draw every entity into `frame` at its rounded cell position. Shared by
     /// the terminal and window frontends so both render identically.
-    pub fn draw(&self, frame: &mut PixelFrame) {
+    pub fn draw(&self, frame: &mut Frame) {
         for e in &self.entities {
             let p = e.pos();
             frame.draw_sprite(p.x.round() as i32, p.y.round() as i32, &e.sprite());
@@ -230,10 +230,10 @@ mod tests {
 
     #[test]
     fn draw_places_entities_at_rounded_positions() {
-        use crate::render::PixelFrame;
+        use crate::render::Frame;
         let mut t = Tank::new(20, 10);
         t.drop_food_at(5.0); // pellet starts at the top: cell (5, 0)
-        let mut frame = PixelFrame::new(20, 10);
+        let mut frame = Frame::new(20, 10);
         t.draw(&mut frame);
         // The pellet lights at least one pixel within its cell (top-left px = (5, 0)).
         assert!(frame.pixel(5, 0).is_some());

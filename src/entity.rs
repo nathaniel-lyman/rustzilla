@@ -44,9 +44,10 @@ const FULL_AFTER: usize = 3; // kills before the shark loses interest and leaves
 
 /// Build the shark's pixel rows; the mid-body widens one column per kill.
 fn shark_rows(eaten: usize) -> Vec<String> {
-    let m = 7 + eaten; // mid-body width (parallels the old "#".repeat(7 + eaten))
-                       // tail-left fixed, mid stretch, head-right fixed. 'g' body, 'e' belly,
-                       // 'k' eye, 'r' mouth.
+    let m = 7 + eaten;
+    // mid-body width `m` grows one column per kill. Each row is a fixed tail
+    // (left) + stretchable mid + fixed head (right): 'g' body, 'e' belly, 'k'
+    // eye, 'r' mouth.
     let tail = ["...", "..g", ".gg", "ggg", "ggg", ".ee", "..e", "..."];
     let mid = ['.', 'g', 'g', 'g', 'g', 'e', 'e', '.'];
     let head = [
